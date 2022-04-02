@@ -28,12 +28,27 @@ export function isAnimationValid(str) {
 
 }
 
+function extractNumber(input){
+    return input.split(',').map(o=>o.replace(/\D/g, ''))
+}
+
 export function parseColorProps(start_color, end_color) {
-    if ((start_color + end_color).indexOf('a') === -1) {
-        const [sr, sg, sb] = start_color.replace('rgb(', '').replace(')', '').replace(/\s/g, '').split(',')
-        const [er, eg, eb] = end_color.replace('rgb(', '').replace(')', '').replace(/\s/g, '').split(',')
-        return `rgb([${ sr }~${ er }],[${ sg }~${ eg }],[${ sb }~${ eb }])`
+    let sr, sg, sb
+    let sa = 1
+    let er, eg, eb
+    let ea = 1
+    if (start_color.indexOf('a') === -1) {
+        [sr, sg, sb] = extractNumber(start_color)
+    } else {
+        [sr, sg, sb, sa] = extractNumber(start_color)
     }
+    if (end_color.indexOf('a') === -1) {
+        [er, eg, eb] = extractNumber(end_color)
+    } else {
+        [er, eg, eb, ea] = extractNumber(end_color)
+    }
+    return `rgba([${ sr }~${ er }],[${ sg }~${ eg }],[${ sb }~${ eb }],[${ sa }~${ ea }])`
+
 }
 
 export function defineNameForAct(config) {
