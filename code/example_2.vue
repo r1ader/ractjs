@@ -5,18 +5,18 @@
 </template>
 
 <script>
-import { r_register } from 'r_animate';
+import { r } from 'ractjs';
 
 export default {
   name: 'App',
   mounted() {
-    r_register(this.$refs.circle);
+    const { circle } = this.$refs;
 
-    this.$refs.circle
-        .r_animate({
+    r(circle)
+        .act({
           transform: 'scale([1~2])',
         })
-        .r_animate({
+        .act({
           transform: 'scale([2~1])',
         });
   },

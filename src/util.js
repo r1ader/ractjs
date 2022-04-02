@@ -10,7 +10,7 @@ export function getNumberFromCssValue(value, unit) {
 }
 
 export function r_warn(msg) {
-    console.warn(`r_animate.js warning: ${ msg }`)
+    console.warn(`ract.js warning: ${ msg }`)
 }
 
 export function isAnimationValid(str) {

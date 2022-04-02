@@ -5,25 +5,24 @@
 </template>
 
 <script>
-import { r_register, act } from 'r_animate';
+import { r, acts } from 'ractjs';
 
 export default {
   name: 'App',
   mounted() {
-    r_register(this.$refs.circle);
+    const { circle } = this.$refs;
 
-    this.$refs.circle.r_animate(act.FADE_OUT).r_animate(act.FADE_IN);
+    r(circle).act(acts.OUT.OPACITY).act(acts.IN.OPACITY);
 
     // or you can have a try with the follow code and use more configurations
 
-    // this.$refs.circle
-    //   .r_animate({
-    //     opacity: '[0~1]',
-    //     ease: 'Linear',
-    //     duration: 1000,
-    //     loop: 6,
-    //     loop_mode: 'alternate'
-    //   })
+    // r(circle).act({
+    //   opacity: '[0~1]',
+    //   ease: 'Linear',
+    //   duration: 1000,
+    //   loop: 6,
+    //   loop_mode: 'alternate',
+    // });
     //
   },
 };

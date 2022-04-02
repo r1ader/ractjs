@@ -9,7 +9,7 @@
 
 ### 2022/3/27 add
 
-- [ ] select a theme color for r_animate.js
+- [ ] select a theme color for ract.js
 - [x] **development**: add predefine animation `act`
 - [x] **development**: add `r_register` as a root method
 - [x] **development**: set `Director` as a root class instead of default export moudal
