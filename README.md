@@ -66,7 +66,7 @@ You can check and run [the completed App.vue](https://stackblitz.com/edit/vue-uf
 or , check [the completed App.vue](https://github.com/r1ader/ractjs/blob/main/code/example_1.vue) in `Github`
 
 ```javascript
- r(this.$refs.circle).act(act.FADE_OUT).act(act.FADE_IN);
+r(ball).act(acts.FADE_OUT).act(acts.FADE_IN);
 ```
 
 ---
@@ -84,7 +84,7 @@ or , check [the completed App.vue](https://github.com/r1ader/ractjs/blob/main/co
 // App.vue
 // ...
 // key code
-r(this.$refs.circle)
+r(ball)
     .act({
         transform: 'scale([1~2])',
         duration: 2000,
