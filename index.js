@@ -1,6 +1,6 @@
 import _ from "./src/lodash.js";
 import { parseEasings } from "./src/math.js"
-import act from './src/act.js'
+import acts from './src/act.js'
 import {
     getNumberFromCssValue,
     isAnimationValid,
@@ -10,35 +10,7 @@ import {
     generate_id
 } from "./src/util.js";
 
-const expose_func_list = [
-    'clean_remain_process',
-    'r_animate',
-    'r_then',
-    'r_busy',
-    'r_schedule',
-    'r_skip',
-    'r_cancel',
-    'r_default',
-]
-
-const expose_props_list = [
-    'r_id',
-    'busy',
-    'busy_with',
-    'schedule',
-    'default',
-    'ease_func',
-]
-
-const config_props_list = [
-    'callback',
-    'reverse',
-    'duration',
-    'delay',
-    'ease',
-]
-
-const support_props = {
+const support_parse_props = {
     px_props:
         [
             'width',
@@ -99,12 +71,13 @@ class Act {
 
     // todo move the check step to the constructor
     update(ref) {
-        Object.keys(this).filter(o => class_prop.indexOf(o) === -1).forEach(key => {
+        Object.keys(this).filter(o => class_prop.indexOf(o) === -1)
+            .forEach(key => {
             if (!isAnimationValid(this[key])) {
                 return r_warn(`syntax error ${ key } : ${ this[key] }`)
             }
-            Object.keys(support_props).forEach(prop_type => {
-                if (support_props[prop_type].indexOf(key) > -1) {
+            Object.keys(support_parse_props).forEach(prop_type => {
+                if (support_parse_props[prop_type].indexOf(key) > -1) {
                     if (!ref) return
                     const computed_style = getComputedStyle(ref)
                     // todo check -> if (prop_type === 'color_props') {parseColorProps}
@@ -283,16 +256,7 @@ class Actor {
         this.ref = this.orignal_ref
     }
 
-    r_stop() {
-        if (this.render_process) {
-            cancelAnimationFrame(this.render_process)
-            this.render_process = undefined
-        }
-        this.busy = false
-        this.busy_with = null
-    }
-
-    r_cancel() {
+    cancel() {
         if (this.render_process) {
             cancelAnimationFrame(this.render_process)
             this.render_process = undefined
@@ -303,11 +267,7 @@ class Actor {
         return this
     }
 
-    clean_remain_process() {
-        this.schedule = []
-    }
-
-    r_animate(config) {
+    act(config) {
         this.schedule.push(new Act(Object.assign({ ...this.default }, config)))
         if (!this.busy) {
             setTimeout(() => {
@@ -317,152 +277,9 @@ class Actor {
         return this
     }
 
-    r_then(func) {
+    then(func) {
         this.schedule.push(new Act({ duration: 0, callback: func }))
         return this
-    }
-
-    r_busy() {
-        return this
-    }
-
-    r_skip() {
-        this.schedule.shift()
-        return this
-    }
-
-    r_schedule() {
-        return this.schedule
-    }
-
-    r_same(target) {
-        target.schedule = target.schedule.concat(this.schedule)
-        setTimeout(() => {
-            target.run()
-        }, 16)
-        return target
-    }
-
-    r_sleep(delay_duration) {
-        this.schedule.push(new Act({
-            delay: delay_duration
-        }))
-        if (!this.busy) {
-            setTimeout(() => {
-                this.run()
-            }, 16)
-        }
-        return this
-    }
-
-    r_default(config) {
-        this.default = { ...config }
-        return this
-    }
-}
-
-class Director extends Actor {
-    constructor() {
-        super(
-            generate_id(),
-            document.createElement('div')
-        );
-        this.id = generate_id()
-
-        this.registered_dict = {}
-
-        this.registered_queue = []
-
-        this.default = {}
-
-    }
-
-    register(args) {
-        // todo deal the situation that one dom was registered for more than one time
-        const wait_register_queue = []
-        if (!_.isArray(args)) {
-            const r_id = generate_id()
-            wait_register_queue.push(r_id)
-            this.registered_dict[r_id] = new Actor(r_id, args)
-            this.registered_queue.push(this.registered_dict[r_id])
-        } else {
-            args = _.compact(args)
-            args.forEach(item => {
-                const r_id = generate_id()
-                wait_register_queue.push(r_id)
-                this.registered_dict[r_id] = new Actor(r_id, item)
-                this.registered_queue.push(this.registered_dict[r_id])
-            })
-        }
-
-        wait_register_queue.forEach(r_id => {
-            const registered_dom = this.registered_dict[r_id]
-            const element = registered_dom.ref
-            registered_dom.default = { ...this.default }
-            expose_props_list.forEach(props_name => {
-                element[props_name] = registered_dom[props_name]
-            })
-            expose_func_list.forEach(func_name => {
-                element[func_name] = registered_dom[func_name].bind(registered_dom)
-            })
-        })
-    }
-
-    take(env) {
-        Object.keys(env.$refs).forEach(ref_name => {
-            this.register(env.$refs[ref_name])
-        })
-    }
-
-    stop() {
-
-    }
-
-    continue() {
-
-    }
-
-    cut() {
-        // todo rename registered_queue as actors
-        this.registered_queue.forEach(member => {
-            member.schedule = []
-            member.stop()
-        })
-    }
-
-    read() {
-        console.log('I am', this.id)
-        return this.registered_queue
-    }
-
-    copy(origin, targets) {
-        const origin_dom = this.registered_dict[origin.r_id]
-        targets.forEach(target => {
-            const registered_dom = this.registered_dict[target.r_id]
-            registered_dom.schedule = registered_dom.schedule.concat(origin_dom.schedule)
-            setTimeout(() => {
-                registered_dom.run()
-            }, 16)
-            return registered_dom.ref
-        })
-    }
-
-    r_default(config) {
-        this.default = { ...config }
-        this.registered_queue.forEach(member => {
-            member.default = { ...config }
-        })
-    }
-}
-
-const ceo = new Director()
-
-const r_register = ceo.register.bind(ceo)
-const r_default = ceo.r_default.bind(ceo)
-
-class ActorGroup extends Actor {
-    constructor() {
-        super();
     }
 }
 
@@ -523,10 +340,7 @@ const r = function () {
 }
 
 export {
-    Director,
-    r_register,
-    r_default,
-    act,
+    acts,
     r
 }
 

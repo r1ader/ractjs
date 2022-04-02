@@ -20,7 +20,7 @@ function get_various_rotate() {
     return res
 }
 
-const act = {
+const acts = {
     OUT: {
         OPACITY: { opacity: '[1~0]' },
         BLUR: {
@@ -191,5 +191,5 @@ const add_name = (obj, name) => {
         add_name(obj[key], name + '.' + key)
     })
 }
-add_name(act, 'act')
-export default act
+add_name(acts, 'acts')
+export default acts

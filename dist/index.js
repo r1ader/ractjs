@@ -100,99 +100,9 @@ function compact(array) {
     isFunction,
     compact
 });
-;// CONCATENATED MODULE: ./src/math.js
-function ease_functions(method) {
-    switch (method) {
-        case 'easeInSine':
-            return (x) => {
-                return 1 - Math.cos((x * Math.PI) / 2);
-            }
-        case 'easeInCirc':
-            return (x) => {
-                return 1 - Math.sqrt(1 - Math.pow(x, 2));
-            }
-
-        case 'easeOutSine':
-            return (x) => {
-                return Math.sin((x * Math.PI) / 2);
-            }
-        case 'easeOutCirc':
-            return (x) => {
-                return Math.sqrt(1 - Math.pow(x - 1, 2));
-            }
-
-        case 'easeInOutSine':
-            return (x) => {
-                return -(Math.cos(PI * x) - 1) / 2;
-            }
-        case 'easeInOutCirc':
-            return (x) => {
-                return x < 0.5
-                    ? (1 - Math.sqrt(1 - Math.pow(2 * x, 2))) / 2
-                    : (Math.sqrt(1 - Math.pow(-2 * x + 2, 2)) + 1) / 2;
-            }
-
-        case 'easeInQuad':
-            return (x) => {
-                return x * x;
-            }
-        case 'easeInBack':
-            return (x) => {
-                const c1 = 1.70158;
-                const c3 = c1 + 1;
-
-                return c3 * x * x * x - c1 * x * x;
-            }
-
-        case 'easeOutQuad':
-            return (x) => {
-                return 1 - (1 - x) * (1 - x);
-            }
-        case 'easeOutExpo':
-            return (x) => {
-                return x === 1 ? 1 : 1 - Math.pow(2, -10 * x);
-            }
-        case 'easeOutBack':
-            return (x) => {
-                const c1 = 1.70158;
-                const c3 = c1 + 1;
-
-                return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2);
-            }
-
-
-        case 'easeInOutQuad':
-            return (x) => {
-                return x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
-            }
-        case 'easeInOutBack':
-            return (x) => {
-                const c1 = 1.70158;
-                const c2 = c1 * 1.525;
-
-                return x < 0.5
-                    ? (Math.pow(2 * x, 2) * ((c2 + 1) * 2 * x - c2)) / 2
-                    : (Math.pow(2 * x - 2, 2) * ((c2 + 1) * (x * 2 - 2) + c2) + 2) / 2;
-            }
-        case 'easeInOutExpo':
-            return (x) => {
-                return x === 0
-                    ? 0
-                    : x === 1
-                        ? 1
-                        : x < 0.5 ? Math.pow(2, 20 * x - 10) / 2
-                            : (2 - Math.pow(2, -20 * x + 10)) / 2;
-            }
-
-        default:
-            return (x) => {
-                return x
-            }
-    }
-}
 ;// CONCATENATED MODULE: ./src/util.js
 // todo support more unit
-function getNumberFromCssValue(value, unit) {
+function util_getNumberFromCssValue(value, unit) {
     unit = unit || ''
     // const px_reg = /(-|\d+|\.)+?px/g
     const reg = new RegExp(`^(-|\\d+|\\.)+[${unit}]*$`, 'gi')
@@ -202,11 +112,12 @@ function getNumberFromCssValue(value, unit) {
     return parseFloat(res[0].replace('px', ''))
 }
 
-function r_warn(msg) {
+function util_r_warn(msg) {
     console.warn(`r_animate.js warning: ${ msg }`)
 }
 
-function isAnimationValid(str) {
+function util_isAnimationValid(str) {
+    str = str || ''
     str = str.toString().replace(/(\[(?:-?(?:\d+\.*)*\d+?)?~-?(?:\d+\.*)*\d+?])/g, '0')
     let check_reg = /^-?(?:\d+\.*)*\d+?(?:px|deg|%|turn)?$/g
     if (check_reg.test(str)) return true
@@ -214,7 +125,7 @@ function isAnimationValid(str) {
     check_reg = /^rgba*\((?:\d+\.*)*\d+?(?:,\s?(?:\d+\.*)*\d+?){2,3}\)$/g
     if (check_reg.test(str)) return true
 
-    check_reg = /^(?:(?:scale|translate|rotate|perspective|skew|matrix)[XYZ]?\(-?(?:\d+\.*)*\d+?(?:px|deg|%|turn)?(?:,\s?-?(?:\d+\.*)*\d+?(?:px|deg|%|turn)?){0,2}\)\s*)+$/g
+    check_reg = /^(?:(?:blur|scale|translate|rotate|perspective|skew|matrix)[XYZ]?\(-?(?:\d+\.*)*\d+?(?:px|deg|%|turn)?(?:,\s?-?(?:\d+\.*)*\d+?(?:px|deg|%|turn)?){0,2}\)\s*)+$/g
     return check_reg.test(str);
 
 
@@ -228,58 +139,403 @@ function parseColorProps(start_color, end_color) {
     }
 }
 
-function defineNameForAct(config) {
+function util_defineNameForAct(config) {
     return Object.keys(config).filter(o => config[o])
         .map(o => `${ o } : ${ config[o].toString() }`)
         .join('\n')
 }
 
-function util_uuidv4() {
+function util_generate_id() {
     return Math.floor(Math.random() * 100000000).toString()
 }
 
 const clog = console.log
-;// CONCATENATED MODULE: ./src/act.js
-/* harmony default export */ const act = ({
-    FADE_OUT: {
-        opacity: '[1~0]'
-    },
-    FADE_IN: {
-        opacity: '[0~1]'
+;// CONCATENATED MODULE: ./src/math.js
+
+
+const bezier = (() => {
+
+    const kSplineTableSize = 11;
+    const kSampleStepSize = 1.0 / (kSplineTableSize - 1.0);
+
+    function A(aA1, aA2) {
+        return 1.0 - 3.0 * aA2 + 3.0 * aA1
     }
-});
+
+    function B(aA1, aA2) {
+        return 3.0 * aA2 - 6.0 * aA1
+    }
+
+    function C(aA1) {
+        return 3.0 * aA1
+    }
+
+    function calcBezier(aT, aA1, aA2) {
+        return ((A(aA1, aA2) * aT + B(aA1, aA2)) * aT + C(aA1)) * aT
+    }
+
+    function getSlope(aT, aA1, aA2) {
+        return 3.0 * A(aA1, aA2) * aT * aT + 2.0 * B(aA1, aA2) * aT + C(aA1)
+    }
+
+    function binarySubdivide(aX, aA, aB, mX1, mX2) {
+        let currentX, currentT, i = 0;
+        do {
+            currentT = aA + (aB - aA) / 2.0;
+            currentX = calcBezier(currentT, mX1, mX2) - aX;
+            if (currentX > 0.0) {
+                aB = currentT
+            } else {
+                aA = currentT
+            }
+
+        } while (Math.abs(currentX) > 0.0000001 && ++i < 10);
+        return currentT;
+    }
+
+    function newtonRaphsonIterate(aX, aGuessT, mX1, mX2) {
+        for (let i = 0; i < 4; ++i) {
+            const currentSlope = getSlope(aGuessT, mX1, mX2);
+            if (currentSlope === 0.0) return aGuessT;
+            const currentX = calcBezier(aGuessT, mX1, mX2) - aX;
+            aGuessT -= currentX / currentSlope;
+        }
+        return aGuessT;
+    }
+
+    function bezier(mX1, mY1, mX2, mY2) {
+
+        if (!(0 <= mX1 && mX1 <= 1 && 0 <= mX2 && mX2 <= 1)) return;
+        let sampleValues = new Float32Array(kSplineTableSize);
+
+        if (mX1 !== mY1 || mX2 !== mY2) {
+            for (let i = 0; i < kSplineTableSize; ++i) {
+                sampleValues[i] = calcBezier(i * kSampleStepSize, mX1, mX2);
+            }
+        }
+
+        function getTForX(aX) {
+
+            let intervalStart = 0;
+            let currentSample = 1;
+            const lastSample = kSplineTableSize - 1;
+
+            for (; currentSample !== lastSample && sampleValues[currentSample] <= aX; ++currentSample) {
+                intervalStart += kSampleStepSize;
+            }
+
+            --currentSample;
+
+            const dist = (aX - sampleValues[currentSample]) / (sampleValues[currentSample + 1] - sampleValues[currentSample]);
+            const guessForT = intervalStart + dist * kSampleStepSize;
+            const initialSlope = getSlope(guessForT, mX1, mX2);
+
+            if (initialSlope >= 0.001) {
+                return newtonRaphsonIterate(aX, guessForT, mX1, mX2);
+            } else if (initialSlope === 0.0) {
+                return guessForT;
+            } else {
+                return binarySubdivide(aX, intervalStart, intervalStart + kSampleStepSize, mX1, mX2);
+            }
+
+        }
+
+        return x => {
+            if (mX1 === mY1 && mX2 === mY2) return x;
+            if (x === 0 || x === 1) return x;
+            return calcBezier(getTForX(x), mY1, mY2);
+        }
+
+    }
+
+    return bezier;
+
+})();
+
+function minMax(val, min, max) {
+    return Math.min(Math.max(val, min), max);
+}
+
+const penner = (() => {
+
+    const eases = { linear: () => t => t };
+
+    const functionEasings = {
+        Sine: () => t => 1 - Math.cos(t * Math.PI / 2),
+        Circ: () => t => 1 - Math.sqrt(1 - t * t),
+        Back: () => t => t * t * (3 * t - 2),
+        Bounce: () => t => {
+            let pow2, b = 4;
+            while (t < ((pow2 = Math.pow(2, --b)) - 1) / 11) {
+            }
+
+            return 1 / Math.pow(4, 3 - b) - 7.5625 * Math.pow((pow2 * 3 - 2) / 22 - t, 2)
+        },
+        Elastic: (amplitude = 1, period = .5) => {
+            const a = minMax(amplitude, 1, 10);
+            const p = minMax(period, .1, 2);
+            return t => {
+                return (t === 0 || t === 1) ? t :
+                    -a * Math.pow(2, 10 * (t - 1)) * Math.sin((((t - 1) - (p / (Math.PI * 2) * Math.asin(1 / a))) * (Math.PI * 2)) / p);
+            }
+        }
+    }
+
+    const baseEasings = ['Quad', 'Cubic', 'Quart', 'Quint', 'Expo'];
+
+    baseEasings.forEach((name, i) => {
+        functionEasings[name] = () => t => Math.pow(t, i + 2);
+    });
+
+    Object.keys(functionEasings).forEach(name => {
+        const easeIn = functionEasings[name];
+        eases['easeIn' + name] = easeIn;
+        eases['easeOut' + name] = (a, b) => t => 1 - easeIn(a, b)(1 - t);
+        eases['easeInOut' + name] = (a, b) => t => t < 0.5 ? easeIn(a, b)(t * 2) / 2 :
+            1 - easeIn(a, b)(t * -2 + 2) / 2;
+        eases['easeOutIn' + name] = (a, b) => t => t < 0.5 ? (1 - easeIn(a, b)(1 - t * 2)) / 2 :
+            (easeIn(a, b)(t * 2 - 1) + 1) / 2;
+    });
+
+    return eases;
+
+})();
+
+const is = {
+    fnc: a => typeof a === 'function'
+}
+
+function parseEasingParameters(string) {
+    const match = /\(([^)]+)\)/.exec(string);
+    return match ? match[1].split(',').map(p => parseFloat(p)) : [];
+}
+
+function applyArguments(func, args) {
+    return func.apply(null, args);
+}
+
+function math_parseEasings(easing, duration) {
+    if (is.fnc(easing)) return easing;
+    const name = easing.split('(')[0];
+    const ease = penner[name];
+    const args = parseEasingParameters(easing);
+    switch (name) {
+        // case 'spring' : return spring(easing, duration);
+        case 'cubic-bezier' :
+            return applyArguments(bezier, args);
+        // case 'steps' : return applyArguments(steps, args);
+        default :
+            if (is.fnc(ease)) {
+                return applyArguments(ease, args);
+            } else {
+                r_warn(`"${ name }" is unsupported, using Linear`)
+                return applyArguments(penner.linear, args);
+            }
+    }
+}
+;// CONCATENATED MODULE: ./src/act.js
+function get_rotate(r, reg, axis) {
+    axis = axis || 'Z'
+    return {
+        transform: `rotate${ axis }([0~${ r ? '' : '-' }${ reg }]deg)`,
+    }
+}
+
+function get_various_rotate() {
+    let rs = [30, 45, 60, 90, 180, 360]
+    const res = {}
+    rs.map(r => {
+        res[`ROTATE_${ r }`] = get_rotate(true, r)
+        res[`ROTATE_${ r }_REVERSE`] = get_rotate(false, r)
+    })
+    rs = [90, 180]
+    rs.map(r => {
+        res[`ROTATE_X_${ r }`] = get_rotate(true, r, 'X')
+        res[`ROTATE_Y_${ r }`] = get_rotate(true, r, 'Y')
+    })
+    return res
+}
+
+const acts = {
+    OUT: {
+        OPACITY: { opacity: '[1~0]' },
+        BLUR: {
+            filter: 'blur([0~30]px)',
+            opacity: '[1~1]',
+            ease: 'linear',
+            callback: [{
+                opacity: '[1~0]',
+                ease: 'linear',
+                duration: 300
+            }],
+            duration: 300,
+        },
+        SCROLL_UP: {
+            transform: 'translate(0, [0~-200]px) perspective(500px) rotateX([0~90]deg)',
+            opacity: '[1~0]',
+            ease: 'cubic-bezier(.69,.05,.2,.94)'
+        },
+        SCROLL_DOWN: {
+            transform: 'translate(0, [0~200]px) perspective(500px) rotateX([0~-90]deg)',
+            opacity: '[1~0]',
+            ease: 'cubic-bezier(.69,.05,.2,.94)'
+        },
+
+    },
+    IN: {
+        OPACITY: { opacity: '[0~1]', ease: 'linear' },
+        BLUR: {
+            opacity: '[1~0]',
+            filter: 'blur([30~30]px)',
+            ease: 'linear',
+            reverse: true,
+            callback: [{
+                filter: 'blur([0~30]px)',
+                reverse: true,
+                ease: 'linear',
+                duration: 300
+            }],
+            duration: 300,
+        },
+        SCROLL_DOWN: {
+            transform: 'translate(0, [-200~0]px) perspective(500px) rotateX([90~0]deg)',
+            opacity: '[0~1]',
+            ease: 'cubic-bezier(.69,.05,.2,.94)'
+        },
+        SCROLL_UP: {
+            transform: 'translate(0, [200~0]px) perspective(500px) rotateX([-90~0]deg)',
+            opacity: '[0~1]',
+            ease: 'cubic-bezier(.69,.05,.2,.94)'
+        }
+    },
+    EMPHASIZE: {
+        SHAKE_X: {
+            duration: 0,
+            callback: [
+                {
+                    transform: 'translateX([0~5]%)',
+                    ease: 'cubic-bezier(.69,.05,.98,.34)',
+                    duration: 25
+                },
+                {
+                    transform: 'translateX([5~-5]%)',
+                    duration: 50,
+                    ease: 'cubic-bezier(.69,.05,.98,.34)',
+                    loop: '4 alternate'
+                },
+                {
+                    transform: 'translateX([-5~0]%)',
+                    ease: 'cubic-bezier(.69,.05,.98,.34)',
+                    duration: 25
+                },
+            ]
+        },
+        SHAKE_Y: {
+            duration: 0,
+            callback: [
+                {
+                    transform: 'translateY([0~5]%)',
+                    ease: 'cubic-bezier(.69,.05,.98,.34)',
+                    duration: 25
+                },
+                {
+                    transform: 'translateY([5~-5]%)',
+                    duration: 50,
+                    ease: 'cubic-bezier(.69,.05,.98,.34)',
+                    loop: '4 alternate'
+                },
+                {
+                    transform: 'translateY([-5~0]%)',
+                    ease: 'cubic-bezier(.69,.05,.98,.34)',
+                    duration: 25
+                },
+            ]
+        },
+        SHAKE_ROTATE: {
+            duration: 0,
+            callback: [
+                {
+                    transform: 'rotateZ([0~10]deg)',
+                    ease: 'cubic-bezier(.69,.05,.98,.34)',
+                    duration: 25
+                },
+                {
+                    transform: 'rotateZ([10~-10]deg)',
+                    duration: 50,
+                    ease: 'cubic-bezier(.69,.05,.98,.34)',
+                    loop: '4 alternate'
+                },
+                {
+                    transform: 'rotateZ([-10~0]deg)',
+                    ease: 'cubic-bezier(.69,.05,.98,.34)',
+                    duration: 25
+                },
+            ]
+        },
+        RADAR: {
+            padding: '[0~30]px',
+            opacity: '[1~0]',
+            duration: 2000,
+            target: 'copy'
+        },
+        BORDER_RADAR: {
+            border: '[2~2]px solid',
+            backgroundColor: 'rgba(0,255,255,[0~0])',
+            padding: '[0~30]px',
+            opacity: '[1~0]',
+            duration: 2000,
+            target: 'copy'
+        },
+        LARGER: {
+            transform: 'scale([1~1.2])',
+            loop: '1 alternate',
+            target: 'wrap',
+        },
+        SMALLER: {
+            transform: 'scale([1~0.8])',
+            loop: '1 alternate',
+            target: 'wrap',
+        },
+        BORDER_STROKE: {
+            backgroundImage: `url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' rx='10' ry='10' fill='none' stroke='white' stroke-width='4' stroke-dasharray='1000%2c 1000' stroke-dashoffset='[-1000~0]' /%3e%3c/svg%3e")`,
+            duration: 2000,
+            ease: 'easeInOutExpo',
+            callback: [{
+                backgroundImage: `url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' rx='10' ry='10' fill='none' stroke='rgba(255,255,255,[1~0])' stroke-width='4' stroke-dasharray='1000%2c 1000' stroke-dashoffset='0' /%3e%3c/svg%3e")`,
+                ease: 'linear',
+                duration: 500
+            }]
+        }
+    },
+    NORMAL: {
+        LARGER: {
+            transform: 'scale([1~1.2])',
+        },
+        SMALLER: {
+            transform: 'scale([1~0.8])',
+        },
+        ...get_various_rotate(),
+    },
+    PHYSICS: {},
+    EFFECTS: {},
+}
+
+const add_name = (obj, name) => {
+    obj.name = name
+    Object.keys(obj).forEach(key => {
+        if (typeof obj[key] !== 'object') return
+        add_name(obj[key], name + '.' + key)
+    })
+}
+add_name(acts, 'acts')
+/* harmony default export */ const src_act = ((/* unused pure expression or super */ null && (act)));
 ;// CONCATENATED MODULE: ./index.js
 
 
 
 
-const expose_func_list = [
-    'clean_remain_process',
-    'r_animate',
-    'r_then',
-    'r_busy',
-    'r_schedule',
-    'r_skip',
-    'r_cancel',
-    'r_default',
-]
 
-const expose_props_list = [
-    'r_id',
-    'busy',
-    'busy_with',
-    'schedule',
-]
-
-const config_props_list = (/* unused pure expression or super */ null && ([
-    'callback',
-    'reverse',
-    'duration',
-    'delay',
-    'ease',
-]))
-
-const support_props = {
+const support_parse_props = {
     px_props:
         [
             'width',
@@ -303,7 +559,7 @@ const support_props = {
     ]
 }
 
-const class_prop = [
+const class_prop = (/* unused pure expression or super */ null && ([
     'name',
     'callback',
     'reverse',
@@ -313,8 +569,8 @@ const class_prop = [
     'parallel',
     'loop',
     'loop_mode',
-]
-
+    'target'
+]))
 
 class Act {
     constructor(argus) {
@@ -322,7 +578,7 @@ class Act {
             this[key] = argus[key]
         })
         this.callback = argus.callback
-        this.duration = lodash.isNumber(argus.duration) ? argus.duration : 1000
+        this.duration = _.isNumber(argus.duration) ? argus.duration : 1000
         this.ease = argus.ease || 'easeOutExpo'
         this.delay = argus.delay || 0
         this.loop = argus.loop
@@ -330,6 +586,7 @@ class Act {
         this.name = argus.name
         this.parallel = argus.parallel
         this.reverse = argus.reverse || false
+        this.target = argus.target || 'self'
     }
 
     // todo support the single item of transform
@@ -339,18 +596,16 @@ class Act {
 
     // todo move the check step to the constructor
     update(ref) {
-        Object.keys(this).filter(o => class_prop.indexOf(o) === -1).forEach(key => {
+        Object.keys(this).filter(o => class_prop.indexOf(o) === -1)
+            .forEach(key => {
             if (!isAnimationValid(this[key])) {
                 return r_warn(`syntax error ${ key } : ${ this[key] }`)
             }
-            Object.keys(support_props).forEach(prop_type => {
-                if (support_props[prop_type].indexOf(key) > -1) {
+            Object.keys(support_parse_props).forEach(prop_type => {
+                if (support_parse_props[prop_type].indexOf(key) > -1) {
                     if (!ref) return
                     const computed_style = getComputedStyle(ref)
-                    if (prop_type === 'color_props') {
-                        this[key] = parseColorProps(computed_style[key], this[key])
-                        return
-                    }
+                    // todo check -> if (prop_type === 'color_props') {parseColorProps}
                     const unit = {
                         px_props: 'px',
                         number_props: '',
@@ -363,19 +618,27 @@ class Act {
                         return
                     }
                     const css_value = getNumberFromCssValue(this[key], unit)
-                    if (!lodash.isNumber(css_value)) {
+                    if (!_.isNumber(css_value)) {
                         return r_warn(`Unrecognized Style Value "${ this[key] }"`)
                     }
                     this[key] = `[${ origin_value }~${ css_value }]${ unit }`
                 }
             })
         })
+        if (_.isString(this.loop)) {
+            const { loop } = this
+            if (loop.split(' ').length === 2) {
+                const [loop_num, loop_mode] = loop.split(' ')
+                this['loop'] = parseInt(loop_num)
+                this['loop_mode'] = loop_mode
+            }
+        }
     }
 
     get plan_duration() {
         let res = 0
-        if (lodash.isNumber(this.delay)) res += this.delay
-        if (lodash.isNumber(this.duration)) res += this.duration
+        if (_.isNumber(this.delay)) res += this.delay
+        if (_.isNumber(this.duration)) res += this.duration
         return res
     }
 
@@ -388,46 +651,52 @@ class Actor {
     constructor(r_id, el) {
         this.r_id = r_id
         this.ref = el
+        this.orignal_ref = el
         this.busy = false
         this.busy_with = null
         this.schedule = []
-        this.inter_func = (a) => a
+        this.ease_func = (a) => a
         this.default = {}
+        this.render_process = null
     }
 
     run() {
-        if (this.busy) return
-        if (this.schedule.length === 0) {
-            console.warn(this.ref.toString() + '’s schedule is empty')
-        }
-        const config = this.schedule.shift()
-        if (!config) return
-        config.update(this.ref)
-        this.busy_with = config
-        this.busy = true
-        this.inter_func = ease_functions(config.ease)
+        if (!this.beforeRender()) return
+        const config = this.busy_with
         if (config.delay > 0) {
             setTimeout(() => {
                 this.render_process = requestAnimationFrame(() => this.render(0))
             }, config.delay)
         } else {
             this.render_process = requestAnimationFrame(() => this.render(0))
-
         }
+    }
+
+    beforeRender() {
+        if (this.busy) return false
+        const config = this.schedule.shift()
+        if (!config) return false
+        if (config.target === 'wrap' && this.ref === this.orignal_ref) this.createWrap()
+        if (config.target === 'copy') this.createCopy()
+        config.update(this.ref)
+        this.busy_with = config
+        this.busy = true
+        this.ease_func = parseEasings(config.ease)
+        return true
     }
 
     render(frame_index) {
         const config = this.busy_with
         if (!config) return
-        const ratio = this.inter_func(Math.min((frame_index * 16 / config.duration), 1.0))
+        const ratio = this.ease_func(Math.min((frame_index * 16 / config.duration), 1.0))
         Object.keys(config).forEach(key => {
             const extract_number_reg = /\[(-|\d|\.)+?~(-|\d||\.)+?\]/g
-            if (!lodash.isString(config[key])) return
+            if (!_.isString(config[key])) return
             const extract_res = config[key].match(extract_number_reg)
-            if (!lodash.isArray(extract_res) || !extract_res.length) return
+            if (!_.isArray(extract_res) || !extract_res.length) return
             let groove = config[key].replace(extract_number_reg, '{}')
             const slots = extract_res.map(range => {
-                let [start_value, end_value] = range.replace('[', '').replace(']', '').split('~').map(o => lodash.toNumber(o))
+                let [start_value, end_value] = range.replace('[', '').replace(']', '').split('~').map(o => _.toNumber(o))
                 if (config.reverse) {
                     [start_value, end_value] = [end_value, start_value]
                 }
@@ -438,43 +707,81 @@ class Actor {
             })
             this.ref.style[key] = groove
         })
-        if (lodash.isFunction(config.parallel)) {
+        if (_.isFunction(config.parallel)) {
             config.parallel(ratio)
         }
         if (frame_index * 16 < config.duration) {
             requestAnimationFrame(() => this.render(frame_index + 1))
         } else {
-            this.busy = false
-            this.busy_with = null
-            if (lodash.isFunction(config.callback)) {
-                config.callback(this)
-            }
-            if (config.loop) {
-                if (!config.loop) return
-                if (lodash.isNumber(config.loop)) {
-                    config.loop = config.loop - 1
-                }
-                if (config.loop === 'alternate' || config.loop_mode === 'alternate') {
-                    config.reverse = !config.reverse
-                }
-                this.schedule.unshift(config)
-            }
-            if (!!this.schedule.length) {
-                this.run()
-            }
+            this.rendered()
         }
     }
 
-    r_stop() {
-        if (this.render_process) {
-            cancelAnimationFrame(this.render_process)
-            this.render_process = undefined
-        }
+    rendered() {
+        const config = this.busy_with
+        if (config.callback) this.createCallback()
+        if (config.loop) this.createLoop()
+        if (config.target === 'wrap' && !config.loop) this.cleanWrap()
+        if (config.copy) this.cleanCopy()
         this.busy = false
         this.busy_with = null
+        if (!!this.schedule.length) this.run()
     }
 
-    r_cancel() {
+    createCallback() {
+        const config = this.busy_with
+        if (_.isFunction(config.callback)) {
+            config.callback(this)
+        }
+        if (_.isArray(config.callback) && config.callback.length) {
+            this.schedule = config.callback.map(o => new Act(o)).concat(this.schedule)
+        }
+    }
+
+    createLoop() {
+        const config = new Act({ ...this.busy_with })
+        if (_.isNumber(config.loop)) {
+            config.loop = config.loop - 1
+        }
+        if (config.loop === 'alternate' || config.loop_mode === 'alternate') {
+            config.reverse = !config.reverse
+        }
+        config.delay = 0
+        this.schedule.unshift(config)
+    }
+
+    createWrap() {
+        const parent = this.ref.parentElement
+        parent.removeChild(this.ref)
+        const container = document.createElement('div')
+        container.appendChild(this.ref)
+        parent.appendChild(container)
+        this.ref = container
+    }
+
+    createCopy() {
+        const parent = this.ref.parentElement
+        const copy = this.ref.cloneNode(true)
+        copy.style.position = 'absolute'
+        parent.appendChild(copy)
+        this.ref = copy
+    }
+
+    cleanWrap() {
+        const parent = this.ref.parentElement
+        parent.removeChild(this.ref)
+        parent.appendChild(this.orignal_ref)
+        this.ref = this.orignal_ref
+    }
+
+    cleanCopy() {
+        const parent = this.ref.parentElement
+        parent.removeChild(this.ref)
+        parent.appendChild(this.orignal_ref)
+        this.ref = this.orignal_ref
+    }
+
+    cancel() {
         if (this.render_process) {
             cancelAnimationFrame(this.render_process)
             this.render_process = undefined
@@ -482,175 +789,83 @@ class Actor {
         this.busy = false
         this.busy_with = null
         this.schedule = []
+        return this
     }
 
-    clean_remain_process() {
-        this.schedule = []
-    }
-
-    r_animate(config) {
+    act(config) {
         this.schedule.push(new Act(Object.assign({ ...this.default }, config)))
         if (!this.busy) {
             setTimeout(() => {
                 this.run()
             }, 16)
         }
-        return this.ref
+        return this
     }
 
-    r_then(func) {
+    then(func) {
         this.schedule.push(new Act({ duration: 0, callback: func }))
-        return this.ref
+        return this
     }
+}
 
-    r_busy() {
-        return this.busy
+const actors = new Map()
+
+const register_actor = function (el) {
+    if (el.r_id) {
+        r_warn(`"${ el.tagName }.${ el.className }" is already registered`)
+        return el
     }
-
-    r_skip() {
-        this.schedule.shift()
-        return this.ref
+    if (actors.has(el)) {
+        return actors.get(el)
     }
-
-    r_schedule() {
-        return this.schedule
-    }
-
-    r_same(target) {
-        target.schedule = target.schedule.concat(this.schedule)
-        setTimeout(() => {
-            target.run()
-        }, 16)
-        return target
-    }
-
-    r_sleep(delay_duration) {
-        this.schedule.push(new Act({
-            delay: delay_duration
-        }))
-        if (!this.busy) {
-            setTimeout(() => {
-                this.run()
-            }, 16)
+    const res = new Proxy(new Actor(util_generate_id(), el), {
+        get(target, prop) {
+            if (prop in target) {
+                return target[prop]
+            } else {
+                return target['ref'][prop]
+            }
+        },
+        set(target, prop, value) {
+            if (prop in target) {
+                return Reflect.set(target, prop, value)
+            } else {
+                return Reflect.set(target['ref'], prop, value)
+            }
         }
-        return this.ref
-    }
-
-    r_default(config) {
-        this.default = { ...config }
-    }
+    })
+    actors.set(el, res)
+    return res
 }
 
-class Director extends Actor {
-    constructor() {
-        super(
-            util_uuidv4().replace(/-/g, ""),
-            document.createElement('div')
-        );
-        this.id = util_uuidv4().replace(/-/g, "")
-
-        this.registered_dict = {}
-
-        this.registered_queue = []
-
-        this.default = {}
-
+const r = function () {
+    let actor_list = []
+    for (let el_index in arguments) {
+        actor_list.push(register_actor(arguments[el_index]))
     }
-
-    register(args) {
-        // todo deal the situation that one dom was registered for more than one time
-        const wait_register_queue = []
-        if (!lodash.isArray(args)) {
-            const r_id = util_uuidv4().replace(/-/g, "")
-            wait_register_queue.push(r_id)
-            this.registered_dict[r_id] = new Actor(r_id, args)
-            this.registered_queue.push(this.registered_dict[r_id])
-        } else {
-            args = lodash.compact(args)
-            args.forEach(item => {
-                const r_id = util_uuidv4().replace(/-/g, "")
-                wait_register_queue.push(r_id)
-                this.registered_dict[r_id] = new Actor(r_id, item)
-                this.registered_queue.push(this.registered_dict[r_id])
-            })
-        }
-
-        wait_register_queue.forEach(r_id => {
-            const registered_dom = this.registered_dict[r_id]
-            const element = registered_dom.ref
-            registered_dom.default = { ...this.default }
-            expose_props_list.forEach(props_name => {
-                element[props_name] = registered_dom[props_name]
-            })
-            expose_func_list.forEach(func_name => {
-                element[func_name] = registered_dom[func_name].bind(registered_dom)
-            })
-        })
-    }
-
-    take(env) {
-        Object.keys(env.$refs).forEach(ref_name => {
-            this.register(env.$refs[ref_name])
-        })
-    }
-
-    stop() {
-
-    }
-
-    continue() {
-
-    }
-
-    cut() {
-        // todo rename registered_queue as actors
-        this.registered_queue.forEach(member => {
-            member.schedule = []
-            member.stop()
-        })
-    }
-
-    read() {
-        console.log('I am', this.id)
-        return this.registered_queue
-    }
-
-    copy(origin, targets) {
-        const origin_dom = this.registered_dict[origin.r_id]
-        targets.forEach(target => {
-            const registered_dom = this.registered_dict[target.r_id]
-            registered_dom.schedule = registered_dom.schedule.concat(origin_dom.schedule)
-            setTimeout(() => {
-                registered_dom.run()
-            }, 16)
-            return registered_dom.ref
-        })
-    }
-
-    r_default(config) {
-        this.default = { ...config }
-        this.registered_queue.forEach(member => {
-            member.default = { ...config }
+    if (actor_list.length === 1) {
+        return actor_list[0]
+    } else {
+        return new Proxy(actor_list, {
+            get: function (target, p) {
+                if (target.every(o => _.isFunction(o[p]))) {
+                    return function () {
+                        const _argus = arguments
+                        target.forEach(function (actor) {
+                            actor[p](..._argus)
+                        })
+                        return this
+                    }
+                } else {
+                    return new Map(target.map(o => [o, o[p]]))
+                }
+            }
         })
     }
 }
-
-const ceo = new Director()
-
-const r_register = ceo.register.bind(ceo)
-const r_default = ceo.r_default.bind(ceo)
-
-;
-
-const r = (el) => {
-    return new Actor(util_uuidv4(), el)
-}
-
 
 export {
-    Director,
-    r_register,
-    r_default,
-    act,
+    acts,
     r
 }
+
