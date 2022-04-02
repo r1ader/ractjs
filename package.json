@@ -1,0 +1,33 @@
+{
+  "name": "ractjs",
+  "version": "1.0.0",
+  "description": "a easy tool to help you make great animation",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/r1ader/r_animate.git"
+  },
+  "keywords": [
+    "animation",
+    "motion",
+    "functional programming"
+  ],
+  "author": "r1ader",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/r1ader/r_animate/issues"
+  },
+  "homepage": "https://github.com/r1ader/r_animate#readme",
+  "devDependencies": {
+    "@babel/preset-env": "^7.16.11",
+    "babel-jest": "^27.5.1",
+    "jest": "^27.5.1",
+    "terser-webpack-plugin": "^5.3.1",
+    "ts-jest": "^27.1.4",
+    "webpack": "^5.70.0",
+    "webpack-cli": "^4.9.2"
+  }
+}
