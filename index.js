@@ -71,16 +71,21 @@ class Act {
 
     // todo move the check step to the constructor
     update(ref) {
-        Object.keys(this).filter(o => class_prop.indexOf(o) === -1)
-            .forEach(key => {
-            if (!isAnimationValid(this[key])) {
-                return r_warn(`syntax error ${ key } : ${ this[key] }`)
+        Object.keys(this).filter(o => class_prop.indexOf(o) === -1).forEach(key => {
+            // if (!isAnimationValid(this[key])) {
+            //     return r_warn(`syntax error ${ key } : ${ this[key] }`)
+            // }
+            if (/\[(-|\d|\.)+?~(-|\d|\.)+?]/.test(this[key])) {
+                return
             }
             Object.keys(support_parse_props).forEach(prop_type => {
                 if (support_parse_props[prop_type].indexOf(key) > -1) {
                     if (!ref) return
                     const computed_style = getComputedStyle(ref)
-                    // todo check -> if (prop_type === 'color_props') {parseColorProps}
+                    if (prop_type === 'color_props') {
+                        this[key] = parseColorProps(computed_style[key], this[key])
+                        return
+                    }
                     const unit = {
                         px_props: 'px',
                         number_props: '',

@@ -144,7 +144,7 @@ const acts = {
         },
         BORDER_RADAR: {
             border: '[2~2]px solid',
-            backgroundColor: 'rgba(0,255,255,[0~0])',
+            backgroundColor: 'rgba(0, 0, 0, [0~0])',
             padding: '[0~30]px',
             opacity: '[1~0]',
             duration: 2000,

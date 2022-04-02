@@ -13,7 +13,7 @@
 
 English | [中文](https://r1ader.gitbook.io/ractjs_cn/)
 
-Notice: 
+Notice:
 
 `ract.js` is in its infancy.
 
@@ -43,7 +43,7 @@ Mainstream browsers such as chrome and firefox already support import natively
 </script>
 ```
 how to use ract.js in native html and javascript ? 👉
-[[code](https://github.com/r1ader/ractjs/blob/main/code/test.html)][[demo](https://r1ader.github.io/ractjs/code/test.html)]
+[[code](https://github.com/r1ader/ractjs/blob/main/code/test.html)][[demo](https://r1ader.github.io/r_animate/code/test.html)]
 
 
 
@@ -63,10 +63,10 @@ how to use ract.js in native html and javascript ? 👉
 
 You can check and run [the completed App.vue](https://stackblitz.com/edit/vue-ufvvux) in `Playground`
 
-or , check [the completed App.vue](https://github.com/r1ader/ractjs/blob/main/code/example_1.vue) in `Github` 
+or , check [the completed App.vue](https://github.com/r1ader/ractjs/blob/main/code/example_1.vue) in `Github`
 
 ```javascript
- r(this.$refs.circle).act(act.FADE_OUT).act(act.FADE_IN);
+r(ball).act(acts.FADE_OUT).act(acts.FADE_IN);
 ```
 
 ---
@@ -84,7 +84,7 @@ or , check [the completed App.vue](https://github.com/r1ader/ractjs/blob/main/co
 // App.vue
 // ...
 // key code
-r(this.$refs.circle)
+r(ball)
     .act({
         transform: 'scale([1~2])',
         duration: 2000,
