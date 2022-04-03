@@ -35,3 +35,4 @@
 - [ ] set_scene ; use this scope
 - [ ] act.sub
 - [ ] actor.style lock
+- [ ] act.raw
