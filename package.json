@@ -1,6 +1,6 @@
 {
   "name": "ractjs",
-  "version": "1.0.2",
+  "version": "1.0.4",
   "description": "a easy tool to help you make great animation",
   "main": "dist/bundle.js",
   "scripts": {
