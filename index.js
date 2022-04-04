@@ -183,9 +183,15 @@ class Actor {
                 return start_value + (end_value - start_value) * ratio
             })
             slots.forEach(value => {
-                groove = groove.replace('{}', Math.round(value * 1000) / 1000)
+                let num_value = Math.round(value * 1000) / 1000
+                if (key === 'zIndex') {
+                    num_value = Math.round(num_value)
+                }
+                groove = groove.replace('{}', num_value)
             })
-            this.ref.style[key] = groove
+            if (this.ref.style[key] !== groove) {
+                this.ref.style[key] = groove
+            }
         })
         if (_.isFunction(config.parallel)) {
             config.parallel(ratio)
