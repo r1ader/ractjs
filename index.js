@@ -170,7 +170,7 @@ class Actor {
         if (!config) return
         const ratio = this.ease_func(Math.min((frame_index * 16 / config.duration), 1.0))
         Object.keys(config).forEach(key => {
-            const extract_number_reg = /\[(-|\d|\.)+?~(-|\d||\.)+?\]/g
+            const extract_number_reg = /\[(-|\d|\.)+?~(-|\d|\.)+?]/g
             if (!_.isString(config[key])) return
             const extract_res = config[key].match(extract_number_reg)
             if (!_.isArray(extract_res) || !extract_res.length) return
