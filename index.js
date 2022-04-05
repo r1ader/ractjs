@@ -180,7 +180,7 @@ class Actor {
             config.parallel(ratio)
         }
         if (frame_index * 16.7 < config.duration) {
-            requestAnimationFrame(() => this.render(frame_index + 1))
+            this.render_process = requestAnimationFrame(() => this.render(frame_index + 1))
         } else {
             this.rendered()
         }
