@@ -1,4 +1,6 @@
 // todo support more unit
+import _ from "./lodash";
+
 export function getNumberFromCssValue(value, unit) {
     unit = unit || ''
     // const px_reg = /(-|\d+|\.)+?px/g
@@ -28,8 +30,8 @@ export function isAnimationValid(str) {
 
 }
 
-function extractNumber(input){
-    return input.split(',').map(o=>o.replace(/\D/g, ''))
+function extractNumber(input) {
+    return input.split(',').map(o => o.replace(/\D/g, ''))
 }
 
 export function parseColorProps(start_color, end_color) {
@@ -62,3 +64,27 @@ export function generate_id() {
 }
 
 export const clog = console.log
+
+export function updateElStyle(el, key, value, ratio, reverse = false) {
+    const extract_number_reg = /\[(-|\d|\.)+?~(-|\d|\.)+?]/g
+    const extract_res = value.match(extract_number_reg)
+    if (!_.isArray(extract_res) || !extract_res.length) return
+    let groove = value.replace(extract_number_reg, '{}')
+    const slots = extract_res.map(range => {
+        let [start_value, end_value] = range.replace('[', '').replace(']', '').split('~').map(o => _.toNumber(o))
+        if (reverse) {
+            [start_value, end_value] = [end_value, start_value]
+        }
+        return start_value + (end_value - start_value) * ratio
+    })
+    slots.forEach(value => {
+        let num_value = Math.round(value * 1000) / 1000
+        if (key === 'zIndex') {
+            num_value = Math.round(num_value)
+        }
+        groove = groove.replace('{}', num_value)
+    })
+    if (el.style[key] !== groove) {
+        el.style[key] = groove
+    }
+}
