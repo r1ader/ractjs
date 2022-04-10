@@ -1,10 +1,11 @@
 {
   "name": "ractjs",
-  "version": "1.0.2",
+  "version": "1.0.5",
   "description": "a easy tool to help you make great animation",
   "main": "dist/bundle.js",
   "scripts": {
-    "test": "jest"
+    "test": "jest",
+    "build": "rollup index.js --file dist/bundle.js --format umd --name \"ract\""
   },
   "repository": {
     "type": "git",
@@ -29,5 +30,8 @@
     "ts-jest": "^27.1.4",
     "webpack": "^5.70.0",
     "webpack-cli": "^4.9.2"
+  },
+  "dependencies": {
+    "rollup": "^2.70.1"
   }
 }
