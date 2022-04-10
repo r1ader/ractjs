@@ -9,7 +9,7 @@
 
 ### 2022/3/27 add
 
-- [ ] select a theme color for ract.js
+- [x] select a theme color for ract.js
 - [x] **development**: add predefine animation `act`
 - [x] **development**: add `r_register` as a root method
 - [x] **development**: set `Director` as a root class instead of default export moudal
@@ -26,8 +26,8 @@
 
 ### 2022/3/29 add
 - [x] ease function support cubic-bezier
-- [ ] .r_wait()
-- [ ] .r_sleep()
+- [ ] .wait()
+- [ ] .sleep()
 - [x] .r (temporal r_register)
 
 ### 2022/3/31 add
@@ -36,3 +36,7 @@
 - [ ] act.sub
 - [ ] actor.style lock
 - [ ] act.raw
+
+### 2022/4/10 add
+- [x] setDefault()
+- [x] .record() ; .reverse()

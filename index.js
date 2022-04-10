@@ -11,6 +11,7 @@ import {
 } from "./src/util.js";
 
 const EASE = Symbol('ease_function')
+const REC = Symbol('onRecord')
 
 const support_parse_props = {
     px_props:
@@ -137,9 +138,11 @@ class Actor {
         this.busy = false
         this.busy_with = null
         this.schedule = []
+        this.record_schedule = []
         this[EASE] = (a) => a
         this.default = {}
         this.render_process = null
+        this[REC] = false
     }
 
     run() {
@@ -158,6 +161,7 @@ class Actor {
         if (this.busy) return false
         const config = this.schedule.shift()
         if (!config) return false
+        // console.log(config.toString())
         if (config.target === 'wrap' && this.ref === this.orignal_ref) this.createWrap()
         if (config.target === 'copy') this.createCopy()
         config.update(this.ref)
@@ -263,14 +267,39 @@ class Actor {
 
     act(config) {
         this.schedule.push(new Act(Object.assign({ ...this.default }, config)))
-        if (this.busy) return this
-        window.queueMicrotask(() => this.run())
+        if (this[REC]) this.record_schedule.push(new Act(Object.assign({ ...this.default }, config)))
+        return this.start()
+    }
+
+    start() {
+        if (!this.busy) window.queueMicrotask(() => this.run())
         return this
     }
 
     then(func) {
         this.schedule.push(new Act({ duration: 0, callback: func }))
         return this
+    }
+
+    setDefault(config) {
+        this.default = {
+            ...this.default,
+            ...config
+        }
+    }
+
+    record() {
+        this[REC] = true
+        return this
+    }
+
+    reverse() {
+        while (this.record_schedule.length) {
+            const new_act = this.record_schedule.pop()
+            new_act.reverse = !new_act.reverse
+            this.schedule.push(new_act)
+        }
+        return this.start()
     }
 }
 
