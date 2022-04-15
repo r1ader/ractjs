@@ -2,6 +2,8 @@ import { parseEasings } from "./math";
 import _ from "./lodash";
 import { updateElStyle } from "./util";
 import Act from "./Act";
+import Follower from "./Follower";
+import MK from "./MK";
 
 const EASE = Symbol('ease_function')
 const REC = Symbol('onRecord')
@@ -188,5 +190,13 @@ export default class Actor {
         }
         this[REC] = false
         return this.start()
+    }
+
+    bind(config) {
+        MK.add_M_event((M, K) => {
+            for (let key in config) {
+                this.ref.style[key] = config[key].replace('[MOUSE_X]', M['MOUSE_X']).replace('[MOUSE_Y]', M['MOUSE_Y'])
+            }
+        })
     }
 }
