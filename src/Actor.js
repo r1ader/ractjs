@@ -18,17 +18,19 @@ export default class Actor {
         this.default = {}
         this.render_process = null
         this[REC] = false
+        this.frame_index = 0
     }
 
     run() {
         if (!this.beforeRender()) return
         const config = this.busy_with
+        this.frame_index = 0
         if (config.delay > 0) {
             setTimeout(() => {
-                this.render_process = requestAnimationFrame(() => this.render(0))
+                this.render_process = requestAnimationFrame(() => this.render())
             }, config.delay)
         } else {
-            this.render_process = requestAnimationFrame(() => this.render(0))
+            this.render_process = requestAnimationFrame(() => this.render())
         }
     }
 
@@ -46,9 +48,10 @@ export default class Actor {
         return true
     }
 
-    render(frame_index) {
+    render() {
         const config = this.busy_with
         if (!config) return
+        const { frame_index } = this
         const ratio = this[EASE](Math.min((frame_index * 16.7 / config.duration), 1.0))
         Object.keys(config).forEach(key => {
             if (!_.isString(config[key])) return
@@ -59,7 +62,8 @@ export default class Actor {
             config.parallel(ratio)
         }
         if (frame_index * 16.7 < config.duration) {
-            this.render_process = requestAnimationFrame(() => this.render(frame_index + 1))
+            this.frame_index += 1
+            this.render_process = requestAnimationFrame(() => this.render())
         } else {
             this.rendered()
         }
@@ -149,6 +153,14 @@ export default class Actor {
     start() {
         if (!this.busy) window.queueMicrotask(() => this.run())
         return this
+    }
+
+    stop() {
+        this.render_process &&= cancelAnimationFrame(this.render_process) || null
+    }
+
+    continue() {
+        this.render_process ||= requestAnimationFrame(() => this.render())
     }
 
     then(func) {

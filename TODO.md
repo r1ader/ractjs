@@ -40,3 +40,7 @@
 ### 2022/4/10 add
 - [x] setDefault()
 - [x] .record() ; .reverse()
+
+
+### 2022/4/15 add
+- [x] .stop() .continue()
