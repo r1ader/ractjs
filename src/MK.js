@@ -11,6 +11,11 @@ export class MK {
             }, {})
         }, true)
     }
+
+
+    update(){
+
+    }
 }
 
 export default new MK()

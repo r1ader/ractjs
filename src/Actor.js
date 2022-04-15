@@ -191,12 +191,4 @@ export default class Actor {
         this[REC] = false
         return this.start()
     }
-
-    bind(config) {
-        MK.add_M_event((M, K) => {
-            for (let key in config) {
-                this.ref.style[key] = config[key].replace('[MOUSE_X]', M['MOUSE_X']).replace('[MOUSE_Y]', M['MOUSE_Y'])
-            }
-        })
-    }
 }
