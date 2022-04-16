@@ -1,33 +1,48 @@
 import MK from "./MK";
+import _ from "./lodash";
+import { calculateStyleValue, isKeyboardState } from "./util";
 
 export default class Follower {
     constructor(el) {
         this.ref = el
     }
 
-
-    bind(config) {
-        let value_reg_global = /\[(.+?)]/g
-        let value_reg = /\[(.+?)]/
-
-        MK.add_M_event((M, K) => {
-            for (let key in config) {
-                let groove = config[key].replaceAll(value_reg_global, '{}')
-                let slots = []
-                let temp_str = config[key]
-                while (value_reg.test(temp_str)) {
-                    slots.push(value_reg.exec(temp_str)[1])
-                    temp_str = temp_str.replace(value_reg, '')
-                }
-                slots = slots.map(o => {
-                    for (let key in M) {
-                        if (o.indexOf(key) > -1) return o.replace(key, M[key])
-                    }
-                    return o
-                }).map(o => eval(o))
-                while (slots.length) groove = groove.replace('{}', slots.shift())
-                this.ref.style[key] = groove
+    create_env(config) {
+        // use Proxy to let MK know which key or mouse event was dependent on
+        const env = new Proxy({}, {
+            get(target, p, receiver) {
+                if (p in MK.M) return MK.M[p]
+                if (isKeyboardState(p)) return MK.K[p]
+                return target[p]
             }
         })
+        config.computed && Object.keys(config.computed).forEach(key => {
+            const func = config.computed[key]
+            typeof func === 'function' && (env[key] = func.bind(env)())
+        })
+        return env
+    }
+
+    updateElStyle(config, env) {
+        Object.keys(config)
+            .filter(o => ['computed'].indexOf(o) === -1)
+            .forEach(key => {
+                if (typeof config[key] === 'function') {
+                    this.ref.style[key] = config[key].bind(env)()
+                    return
+                }
+                this.ref.style[key] = calculateStyleValue(config[key], env)
+            })
+    }
+
+    create_callback(config) {
+        return () => {
+            const env = this.create_env(config)
+            this.updateElStyle(config, env)
+        }
+    }
+
+    bind(config) {
+        MK.add_callback(this.create_callback(config))
     }
 }

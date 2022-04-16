@@ -88,3 +88,40 @@ export function updateElStyle(el, key, value, ratio, reverse = false) {
         el.style[key] = groove
     }
 }
+
+export function calculateStyleValue(value, env) {
+    let value_reg_global = /\[(.+?)]/g
+    let value_reg = /\[(.+?)]/
+    let groove = value.replaceAll(value_reg_global, '{}')
+    let slots = []
+    let temp_str = value
+    while (value_reg.test(temp_str)) {
+        slots.push(value_reg.exec(temp_str)[1])
+        temp_str = temp_str.replace(value_reg, '')
+    }
+    slots = slots.map(o => {
+        for (let key in env) {
+            try {
+                if (new RegExp(`(?:^|[\(\)+\\-*/\s])${key}(?:$|[\(\)+\\-*/\s])`).test(o)) {
+                    return eval(o.replace(key, env[key]))
+                }
+            } catch (e) {
+            }
+        }
+        return o
+    })
+    while (slots.length) groove = groove.replace('{}', slots.shift())
+    return groove
+}
+
+export function isKeyboardState(prop) {
+    // todo support all key event at all os
+    if (/Key[A-Z]/.test(prop)) return true
+    return /(Enter)/.test(prop);
+
+}
+
+export function isMouseState(prop) {
+    // todo support all mouse event at all os
+    return ['clientX', 'clientY'].indexOf(prop) > -1
+}
