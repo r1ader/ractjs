@@ -151,10 +151,6 @@
             .join('\n')
     }
 
-    function generate_id() {
-        return Math.floor(Math.random() * 100000000).toString()
-    }
-
     function updateElStyle(el, key, value, ratio, reverse = false) {
         const extract_number_reg = /\[(-|\d|\.)+?~(-|\d|\.)+?]/g;
         const extract_res = value.match(extract_number_reg);
@@ -177,6 +173,43 @@
         if (el.style[key] !== groove) {
             el.style[key] = groove;
         }
+    }
+
+    function calculateStyleValue(value, env) {
+        let value_reg_global = /\[(.+?)]/g;
+        let value_reg = /\[(.+?)]/;
+        let groove = value.replaceAll(value_reg_global, '{}');
+        let slots = [];
+        let temp_str = value;
+        while (value_reg.test(temp_str)) {
+            slots.push(value_reg.exec(temp_str)[1]);
+            temp_str = temp_str.replace(value_reg, '');
+        }
+        slots = slots.map(o => {
+            for (let key in env) {
+                try {
+                    if (new RegExp(`(?:^|[\(\)+\\-*/\s])${key}(?:$|[\(\)+\\-*/\s])`).test(o)) {
+                        return eval(o.replace(key, env[key]))
+                    }
+                } catch (e) {
+                }
+            }
+            return o
+        });
+        while (slots.length) groove = groove.replace('{}', slots.shift());
+        return groove
+    }
+
+    function isKeyboardState(prop) {
+        // todo support all key event at all os
+        if (/Key[A-Z]/.test(prop)) return true
+        return /(Enter)/.test(prop);
+
+    }
+
+    function isMouseState(prop) {
+        // todo support all mouse event at all os
+        return ['clientX', 'clientY'].indexOf(prop) > -1
     }
 
     const bezier = (() => {
@@ -357,6 +390,431 @@
                     r_warn(`"${ name }" is unsupported, using Linear`);
                     return applyArguments(penner.linear, args);
                 }
+        }
+    }
+
+    const support_parse_props = {
+        px_props:
+            [
+                'width',
+                'height',
+                'top',
+                'left',
+                'right',
+                'right',
+                'bottom',
+                'padding',
+                'margin',
+                'borderRadius',
+            ],
+        number_props: [
+            'zIndex',
+            'opacity'
+        ],
+        color_props: [
+            'borderColor',
+            'backgroundColor'
+        ]
+    };
+
+    const class_prop = [
+        'name',
+        'callback',
+        'reverse',
+        'duration',
+        'delay',
+        'ease',
+        'parallel',
+        'loop',
+        'loop_mode',
+        'target'
+    ];
+
+    class Act {
+        constructor(argus) {
+            Object.keys(argus).forEach(key => {
+                this[key] = argus[key];
+            });
+            this.callback = argus.callback;
+            this.duration = _.isNumber(argus.duration) ? argus.duration : 1000;
+            this.ease = argus.ease || 'easeOutExpo';
+            this.delay = argus.delay || 0;
+            this.loop = argus.loop;
+            this.loop_mode = argus.loop_mode;
+            this.name = argus.name;
+            this.parallel = argus.parallel;
+            this.reverse = argus.reverse || false;
+            this.target = argus.target || 'self';
+        }
+
+        // todo support the single item of transform
+        //  and auto fill other item with update function
+
+        // todo support the unit change e.g.(em px vw vh)
+
+        // todo move the check step to the constructor
+        update(ref) {
+            Object.keys(this).filter(o => class_prop.indexOf(o) === -1).forEach(key => {
+                // if (!isAnimationValid(this[key])) {
+                //     return r_warn(`syntax error ${ key } : ${ this[key] }`)
+                // }
+                if (/\[(-|\d|\.)+?~(-|\d|\.)+?]/.test(this[key])) {
+                    return
+                }
+                Object.keys(support_parse_props).forEach(prop_type => {
+                    if (support_parse_props[prop_type].indexOf(key) > -1) {
+                        if (!ref) return
+                        const computed_style = getComputedStyle(ref);
+                        if (prop_type === 'color_props') {
+                            this[key] = parseColorProps(computed_style[key], this[key]);
+                            return
+                        }
+                        const unit = {
+                            px_props: 'px',
+                            number_props: '',
+                        }[prop_type] || '';
+                        const uppercasePropName = key.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
+                        const origin_str = ref.style[key] || computed_style.getPropertyValue(uppercasePropName) || '0';
+                        const origin_value = getNumberFromCssValue(origin_str, unit);
+                        if (/\[(-|\d|\.)*?~(-|\d|\.)+?\]/.test(this[key])) {
+                            this[key] = this[key].replace(/([\[])(\~)/g, `[${ origin_value }~`);
+                            return
+                        }
+                        const css_value = getNumberFromCssValue(this[key], unit);
+                        if (!_.isNumber(css_value)) {
+                            return r_warn(`Unrecognized Style Value "${ this[key] }"`)
+                        }
+                        this[key] = `[${ origin_value }~${ css_value }]${ unit }`;
+                    }
+                });
+            });
+            if (_.isString(this.loop)) {
+                const { loop } = this;
+                if (loop.split(' ').length === 2) {
+                    const [loop_num, loop_mode] = loop.split(' ');
+                    this['loop'] = parseInt(loop_num);
+                    this['loop_mode'] = loop_mode;
+                }
+            }
+        }
+
+        toString() {
+            return defineNameForAct(this)
+        }
+    }
+
+    class MK {
+        constructor() {
+            const _this = this;
+            this.M = this.init_M();
+            this.K = this.init_K();
+            this.callback = null;
+            this.mousemove_followers = [];
+            this.keydown_followers = {};
+            document.addEventListener('mousemove', function (e) {
+                _this.M.clientX = e.clientX;
+                _this.M.clientY = e.clientY;
+            }, true);
+            document.addEventListener('keydown', function (e) {
+                _this.K[e.code] = true;
+            }, true);
+            document.addEventListener('keyup', function (e) {
+                _this.K[e.code] = false;
+            }, true);
+        }
+
+        init_M() {
+            const _this = this;
+            return new Proxy({
+                clientX: 0,
+                clientY: 0,
+            }, {
+                get: function (target, p, receiver) {
+                    if (!_this.callback || !isMouseState(p)) return target[p]
+                    if (_this.mousemove_followers.indexOf(_this.callback) === -1) {
+                        _this.mousemove_followers.push(_this.callback);
+                    }
+                    return target[p]
+                },
+                set(target, p, value, receiver) {
+                    // console.log('set', p)
+                    const res = Reflect.set(target, p, value);
+                    _this.mousemove_followers && _this.mousemove_followers.forEach(func => {
+                        typeof func === 'function' && func();
+                    });
+                    return res
+                }
+            })
+        }
+
+        init_K() {
+            const _this = this;
+            return new Proxy({}, {
+                get: function (target, p, receiver) {
+                    // console.log('get', p)
+                    if (!_this.callback || !isKeyboardState(p)) return target[p]
+                    _this.keydown_followers[p] ||= [];
+                    if (_this.keydown_followers[p].indexOf(_this.callback) === -1) {
+                        _this.keydown_followers[p].push(_this.callback);
+                    }
+                    return target[p]
+                },
+                set: function (target, p, value, receiver) {
+                    // console.log('set', p)
+                    const res = Reflect.set(target, p, value);
+                    _this.keydown_followers[p] && _this.keydown_followers[p].forEach(func => {
+                        typeof func === 'function' && func();
+                    });
+                    return res
+                }
+            })
+        }
+
+
+        update() {
+
+        }
+
+        add_callback(callback) {
+            this.callback = callback;
+            // console.log(callback)
+            callback(this.M, this.K);
+            this.callback = null;
+        }
+    }
+
+    var MK$1 = new MK();
+
+    class Follower {
+        constructor(el) {
+            this.ref = el;
+        }
+
+        create_env(config) {
+            // use Proxy to let MK know which key or mouse event was dependent on
+            const env = new Proxy({}, {
+                get(target, p, receiver) {
+                    if (p in MK$1.M) return MK$1.M[p]
+                    if (isKeyboardState(p)) return MK$1.K[p]
+                    return target[p]
+                }
+            });
+            config.computed && Object.keys(config.computed).forEach(key => {
+                const func = config.computed[key];
+                typeof func === 'function' && (env[key] = func.bind(env)());
+            });
+            return env
+        }
+
+        updateElStyle(config, env) {
+            Object.keys(config)
+                .filter(o => ['computed'].indexOf(o) === -1)
+                .forEach(key => {
+                    if (typeof config[key] === 'function') {
+                        this.ref.style[key] = config[key].bind(env)();
+                        return
+                    }
+                    this.ref.style[key] = calculateStyleValue(config[key], env);
+                });
+        }
+
+        create_callback(config) {
+            return () => {
+                const env = this.create_env(config);
+                this.updateElStyle(config, env);
+            }
+        }
+
+        bind(config) {
+            MK$1.add_callback(this.create_callback(config));
+        }
+    }
+
+    const EASE = Symbol('ease_function');
+    const REC = Symbol('onRecord');
+
+    class Actor {
+        constructor(el) {
+            this.ref = el;
+            this.orignal_ref = el;
+            this.busy = false;
+            this.busy_with = null;
+            this.schedule = [];
+            this.record_schedule = [];
+            this[EASE] = (a) => a;
+            this.default = {};
+            this.render_process = null;
+            this[REC] = false;
+            this.frame_index = 0;
+        }
+
+        run() {
+            if (!this.beforeRender()) return
+            const config = this.busy_with;
+            this.frame_index = 0;
+            if (config.delay > 0) {
+                setTimeout(() => {
+                    this.render_process = requestAnimationFrame(() => this.render());
+                }, config.delay);
+            } else {
+                this.render_process = requestAnimationFrame(() => this.render());
+            }
+        }
+
+        beforeRender() {
+            if (this.busy) return false
+            const config = this.schedule.shift();
+            if (!config) return false
+            // console.log(config.toString())
+            if (config.target === 'wrap' && this.ref === this.orignal_ref) this.createWrap();
+            if (config.target === 'copy') this.createCopy();
+            config.update(this.ref);
+            this.busy_with = config;
+            this.busy = true;
+            this[EASE] = parseEasings(config.ease);
+            return true
+        }
+
+        render() {
+            const config = this.busy_with;
+            if (!config) return
+            const { frame_index } = this;
+            const ratio = this[EASE](Math.min((frame_index * 16.7 / config.duration), 1.0));
+            Object.keys(config).forEach(key => {
+                if (!_.isString(config[key])) return
+                // todo extract regex out of render
+                updateElStyle(this.ref, key, config[key], ratio, config.reverse);
+            });
+            if (_.isFunction(config.parallel)) {
+                config.parallel(ratio);
+            }
+            if (frame_index * 16.7 < config.duration) {
+                this.frame_index += 1;
+                this.render_process = requestAnimationFrame(() => this.render());
+            } else {
+                this.rendered();
+            }
+        }
+
+        rendered() {
+            const config = this.busy_with;
+            if (config.callback) this.createCallback();
+            if (config.loop) this.createLoop();
+            if (config.target === 'wrap' && !config.loop) this.cleanWrap();
+            if (config.copy) this.cleanCopy();
+            this.busy = false;
+            this.busy_with = null;
+            if (!!this.schedule.length) this.run();
+        }
+
+        createCallback() {
+            const config = this.busy_with;
+            if (_.isFunction(config.callback)) {
+                config.callback(this);
+            }
+            if (_.isArray(config.callback) && config.callback.length) {
+                this.schedule = config.callback.map(o => new Act(o)).concat(this.schedule);
+            }
+        }
+
+        createLoop() {
+            const config = new Act({ ...this.busy_with });
+            if (_.isNumber(config.loop)) {
+                config.loop = config.loop - 1;
+            }
+            if (config.loop === 'alternate' || config.loop_mode === 'alternate') {
+                config.reverse = !config.reverse;
+            }
+            config.delay = 0;
+            this.schedule.unshift(config);
+        }
+
+        createWrap() {
+            const parent = this.ref.parentElement;
+            parent.removeChild(this.ref);
+            const container = document.createElement('div');
+            container.appendChild(this.ref);
+            parent.appendChild(container);
+            this.ref = container;
+        }
+
+        createCopy() {
+            const parent = this.ref.parentElement;
+            const copy = this.ref.cloneNode(true);
+            copy.style.position = 'absolute';
+            parent.appendChild(copy);
+            this.ref = copy;
+        }
+
+        cleanWrap() {
+            const parent = this.ref.parentElement;
+            parent.removeChild(this.ref);
+            parent.appendChild(this.orignal_ref);
+            this.ref = this.orignal_ref;
+        }
+
+        cleanCopy() {
+            const parent = this.ref.parentElement;
+            parent.removeChild(this.ref);
+            parent.appendChild(this.orignal_ref);
+            this.ref = this.orignal_ref;
+        }
+
+        cancel() {
+            if (this.render_process) {
+                cancelAnimationFrame(this.render_process);
+                this.render_process = undefined;
+            }
+            this.busy = false;
+            this.busy_with = null;
+            this.schedule = [];
+            return this
+        }
+
+        act(config) {
+            this.schedule.push(new Act(Object.assign({ ...this.default }, config)));
+            if (this[REC]) this.record_schedule.push(new Act(Object.assign({ ...this.default }, config)));
+            return this.start()
+        }
+
+        start() {
+            if (!this.busy) window.queueMicrotask(() => this.run());
+            return this
+        }
+
+        stop() {
+            this.render_process &&= cancelAnimationFrame(this.render_process) || null;
+        }
+
+        continue() {
+            this.render_process ||= requestAnimationFrame(() => this.render());
+        }
+
+        then(func) {
+            this.schedule.push(new Act({ duration: 0, callback: func }));
+            return this
+        }
+
+        setDefault(config) {
+            this.default = {
+                ...this.default,
+                ...config
+            };
+        }
+
+        record() {
+            this[REC] = true;
+            return this
+        }
+
+        reverse() {
+            while (this.record_schedule.length) {
+                const new_act = this.record_schedule.pop();
+                new_act.reverse = !new_act.reverse;
+                this.schedule.push(new_act);
+            }
+            this[REC] = false;
+            return this.start()
         }
     }
 
@@ -555,353 +1013,50 @@
     };
     add_name(acts, 'acts');
 
-    const EASE = Symbol('ease_function');
-    const REC = Symbol('onRecord');
+    const staffs = new Map();
 
-    const support_parse_props = {
-        px_props:
-            [
-                'width',
-                'height',
-                'top',
-                'left',
-                'right',
-                'right',
-                'bottom',
-                'padding',
-                'margin',
-                'borderRadius',
-            ],
-        number_props: [
-            'zIndex',
-            'opacity'
-        ],
-        color_props: [
-            'borderColor',
-            'backgroundColor'
-        ]
-    };
-
-    const class_prop = [
-        'name',
-        'callback',
-        'reverse',
-        'duration',
-        'delay',
-        'ease',
-        'parallel',
-        'loop',
-        'loop_mode',
-        'target'
-    ];
-
-    class Act {
-        constructor(argus) {
-            Object.keys(argus).forEach(key => {
-                this[key] = argus[key];
-            });
-            this.callback = argus.callback;
-            this.duration = _.isNumber(argus.duration) ? argus.duration : 1000;
-            this.ease = argus.ease || 'easeOutExpo';
-            this.delay = argus.delay || 0;
-            this.loop = argus.loop;
-            this.loop_mode = argus.loop_mode;
-            this.name = argus.name;
-            this.parallel = argus.parallel;
-            this.reverse = argus.reverse || false;
-            this.target = argus.target || 'self';
-        }
-
-        // todo support the single item of transform
-        //  and auto fill other item with update function
-
-        // todo support the unit change e.g.(em px vw vh)
-
-        // todo move the check step to the constructor
-        update(ref) {
-            Object.keys(this).filter(o => class_prop.indexOf(o) === -1).forEach(key => {
-                // if (!isAnimationValid(this[key])) {
-                //     return r_warn(`syntax error ${ key } : ${ this[key] }`)
-                // }
-                if (/\[(-|\d|\.)+?~(-|\d|\.)+?]/.test(this[key])) {
-                    return
-                }
-                Object.keys(support_parse_props).forEach(prop_type => {
-                    if (support_parse_props[prop_type].indexOf(key) > -1) {
-                        if (!ref) return
-                        const computed_style = getComputedStyle(ref);
-                        if (prop_type === 'color_props') {
-                            this[key] = parseColorProps(computed_style[key], this[key]);
-                            return
-                        }
-                        const unit = {
-                            px_props: 'px',
-                            number_props: '',
-                        }[prop_type] || '';
-                        const uppercasePropName = key.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
-                        const origin_str = ref.style[key] || computed_style.getPropertyValue(uppercasePropName) || '0';
-                        const origin_value = getNumberFromCssValue(origin_str, unit);
-                        if (/\[(-|\d|\.)*?~(-|\d|\.)+?\]/.test(this[key])) {
-                            this[key] = this[key].replace(/([\[])(\~)/g, `[${ origin_value }~`);
-                            return
-                        }
-                        const css_value = getNumberFromCssValue(this[key], unit);
-                        if (!_.isNumber(css_value)) {
-                            return r_warn(`Unrecognized Style Value "${ this[key] }"`)
-                        }
-                        this[key] = `[${ origin_value }~${ css_value }]${ unit }`;
-                    }
-                });
-            });
-            if (_.isString(this.loop)) {
-                const { loop } = this;
-                if (loop.split(' ').length === 2) {
-                    const [loop_num, loop_mode] = loop.split(' ');
-                    this['loop'] = parseInt(loop_num);
-                    this['loop_mode'] = loop_mode;
-                }
-            }
-        }
-
-        get plan_duration() {
-            let res = 0;
-            if (_.isNumber(this.delay)) res += this.delay;
-            if (_.isNumber(this.duration)) res += this.duration;
-            return res
-        }
-
-        toString() {
-            return defineNameForAct(this)
-        }
-    }
-
-    class Actor {
-        constructor(r_id, el) {
-            this.r_id = r_id;
-            this.ref = el;
-            this.orignal_ref = el;
-            this.busy = false;
-            this.busy_with = null;
-            this.schedule = [];
-            this.record_schedule = [];
-            this[EASE] = (a) => a;
-            this.default = {};
-            this.render_process = null;
-            this[REC] = false;
-        }
-
-        run() {
-            if (!this.beforeRender()) return
-            const config = this.busy_with;
-            if (config.delay > 0) {
-                setTimeout(() => {
-                    this.render_process = requestAnimationFrame(() => this.render(0));
-                }, config.delay);
-            } else {
-                this.render_process = requestAnimationFrame(() => this.render(0));
-            }
-        }
-
-        beforeRender() {
-            if (this.busy) return false
-            const config = this.schedule.shift();
-            if (!config) return false
-            // console.log(config.toString())
-            if (config.target === 'wrap' && this.ref === this.orignal_ref) this.createWrap();
-            if (config.target === 'copy') this.createCopy();
-            config.update(this.ref);
-            this.busy_with = config;
-            this.busy = true;
-            this[EASE] = parseEasings(config.ease);
-            return true
-        }
-
-        render(frame_index) {
-            const config = this.busy_with;
-            if (!config) return
-            const ratio = this[EASE](Math.min((frame_index * 16.7 / config.duration), 1.0));
-            Object.keys(config).forEach(key => {
-                if (!_.isString(config[key])) return
-                // todo extract regex out of render
-                updateElStyle(this.ref, key, config[key], ratio, config.reverse);
-            });
-            if (_.isFunction(config.parallel)) {
-                config.parallel(ratio);
-            }
-            if (frame_index * 16.7 < config.duration) {
-                this.render_process = requestAnimationFrame(() => this.render(frame_index + 1));
-            } else {
-                this.rendered();
-            }
-        }
-
-        rendered() {
-            const config = this.busy_with;
-            if (config.callback) this.createCallback();
-            if (config.loop) this.createLoop();
-            if (config.target === 'wrap' && !config.loop) this.cleanWrap();
-            if (config.copy) this.cleanCopy();
-            this.busy = false;
-            this.busy_with = null;
-            if (!!this.schedule.length) this.run();
-        }
-
-        createCallback() {
-            const config = this.busy_with;
-            if (_.isFunction(config.callback)) {
-                config.callback(this);
-            }
-            if (_.isArray(config.callback) && config.callback.length) {
-                this.schedule = config.callback.map(o => new Act(o)).concat(this.schedule);
-            }
-        }
-
-        createLoop() {
-            const config = new Act({ ...this.busy_with });
-            if (_.isNumber(config.loop)) {
-                config.loop = config.loop - 1;
-            }
-            if (config.loop === 'alternate' || config.loop_mode === 'alternate') {
-                config.reverse = !config.reverse;
-            }
-            config.delay = 0;
-            this.schedule.unshift(config);
-        }
-
-        createWrap() {
-            const parent = this.ref.parentElement;
-            parent.removeChild(this.ref);
-            const container = document.createElement('div');
-            container.appendChild(this.ref);
-            parent.appendChild(container);
-            this.ref = container;
-        }
-
-        createCopy() {
-            const parent = this.ref.parentElement;
-            const copy = this.ref.cloneNode(true);
-            copy.style.position = 'absolute';
-            parent.appendChild(copy);
-            this.ref = copy;
-        }
-
-        cleanWrap() {
-            const parent = this.ref.parentElement;
-            parent.removeChild(this.ref);
-            parent.appendChild(this.orignal_ref);
-            this.ref = this.orignal_ref;
-        }
-
-        cleanCopy() {
-            const parent = this.ref.parentElement;
-            parent.removeChild(this.ref);
-            parent.appendChild(this.orignal_ref);
-            this.ref = this.orignal_ref;
-        }
-
-        cancel() {
-            if (this.render_process) {
-                cancelAnimationFrame(this.render_process);
-                this.render_process = undefined;
-            }
-            this.busy = false;
-            this.busy_with = null;
-            this.schedule = [];
-            return this
-        }
-
-        act(config) {
-            this.schedule.push(new Act(Object.assign({ ...this.default }, config)));
-            if (this[REC]) this.record_schedule.push(new Act(Object.assign({ ...this.default }, config)));
-            return this.start()
-        }
-
-        start() {
-            if (!this.busy) window.queueMicrotask(() => this.run());
-            return this
-        }
-
-        then(func) {
-            this.schedule.push(new Act({ duration: 0, callback: func }));
-            return this
-        }
-
-        setDefault(config) {
-            this.default = {
-                ...this.default,
-                ...config
-            };
-        }
-
-        record() {
-            this[REC] = true;
-            return this
-        }
-
-        reverse() {
-            while (this.record_schedule.length) {
-                const new_act = this.record_schedule.pop();
-                new_act.reverse = !new_act.reverse;
-                this.schedule.push(new_act);
-            }
-            return this.start()
-        }
-    }
-
-    const actors = new Map();
-
-    const register_actor = function (el) {
-        if (el.r_id) {
-            r_warn(`"${ el.tagName }.${ el.className }" is already registered`);
-            return el
-        }
-        if (actors.has(el)) {
-            return actors.get(el)
-        }
-        const res = new Proxy(new Actor(generate_id(), el), {
-            get(target, prop) {
-                if (prop in target) {
-                    return target[prop]
-                } else {
-                    return target['ref'][prop]
-                }
-            },
-            set(target, prop, value) {
-                if (prop in target) {
-                    return Reflect.set(target, prop, value)
-                } else {
-                    return Reflect.set(target['ref'], prop, value)
-                }
-            }
-        });
-        actors.set(el, res);
-        return res
-    };
-
-    const r = function () {
-        let actor_list = [];
-        for (let el_index in arguments) {
-            actor_list.push(register_actor(arguments[el_index]));
-        }
-        if (actor_list.length === 1) {
-            return actor_list[0]
-        } else {
-            return new Proxy(actor_list, {
-                get: function (target, p) {
-                    if (target.every(o => _.isFunction(o[p]))) {
-                        return function () {
-                            const _argus = arguments;
-                            target.forEach(function (actor) {
-                                actor[p](..._argus);
-                            });
-                            return this
-                        }
-                    } else {
-                        return new Map(target.map(o => [o, o[p]]))
-                    }
+    class Staff {
+        constructor(el) {
+            this.actor = new Actor(el);
+            this.follower = new Follower(el);
+            const _this = this;
+            return new Proxy(el, {
+                get(target, prop) {
+                    if (prop in _this.actor) return _this.actor[prop]
+                    if (prop in _this.follower) return _this.follower[prop]
+                },
+                set(target, prop, value) {
+                    if (prop in _this.actor) return Reflect.set(_this.actor, prop, value)
+                    if (prop in _this.follower) return Reflect.set(_this.follower, prop, value)
                 }
             })
         }
+    }
+
+    const register = function (el) {
+        if (staffs.has(el)) return staffs.get(el)
+        const res = new Staff(el);
+        staffs.set(el, res);
+        return res
+    };
+
+    const r = function (...staff_list) {
+        return new Proxy(staff_list.map(o => register(o)), {
+            get: function (target, p) {
+                if (target.every(o => _.isFunction(o[p]))) {
+                    return function () {
+                        const _args = arguments;
+                        target.forEach(function (actor) {
+                            actor[p](..._args);
+                        });
+                        return this
+                    }
+                } else {
+                    return new Map(target.map(o => [o, o[p]]))
+                }
+            }
+        })
+
     };
 
     exports.acts = acts;
