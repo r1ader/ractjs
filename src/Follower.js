@@ -1,5 +1,4 @@
 import MK from "./MK";
-import _ from "./lodash";
 import { calculateStyleValue, isKeyboardState } from "./util";
 
 export default class Follower {
