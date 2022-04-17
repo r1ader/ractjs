@@ -125,3 +125,26 @@ export function isMouseState(prop) {
     // todo support all mouse event at all os
     return ['clientX', 'clientY'].indexOf(prop) > -1
 }
+
+export function typeCheck(target) {
+    if (target instanceof HTMLElement) return 'dom'
+    if (target?.__proto__?.__proto__ === null) return 'obj'
+}
+
+export function arrayLikeProxy(array){
+    return new Proxy(array, {
+        get: function (target, p) {
+            if (target.every(o => _.isFunction(o[p]))) {
+                return function () {
+                    const _args = arguments
+                    target.forEach(function (actor) {
+                        actor[p](..._args)
+                    })
+                    return this
+                }
+            } else {
+                return new Map(target.map(o => [o, o[p]]))
+            }
+        }
+    })
+}

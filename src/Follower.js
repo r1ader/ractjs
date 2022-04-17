@@ -1,16 +1,19 @@
 import MK from "./MK";
-import { calculateStyleValue, isKeyboardState } from "./util";
+import _ from "./lodash";
+import { calculateStyleValue, isKeyboardState, isMouseState, typeCheck } from "./util";
 
 export default class Follower {
-    constructor(el) {
-        this.ref = el
+    constructor(target) {
+        this.ref = target
+        this.type = typeCheck(target)
     }
 
     create_env(config) {
         // use Proxy to let MK know which key or mouse event was dependent on
+        // todo init env only once, update env for every follower
         const env = new Proxy({}, {
             get(target, p, receiver) {
-                if (p in MK.M) return MK.M[p]
+                if (isMouseState(p)) return MK.M[p]
                 if (isKeyboardState(p)) return MK.K[p]
                 return target[p]
             }
@@ -34,14 +37,23 @@ export default class Follower {
             })
     }
 
+    updateFoValue(config, env) {
+        const updater = this.ref.updater || ((value) => this.ref.value = value)
+        _.isString(config) && updater(env[config])
+        _.isFunction(config) && updater(config.bind(env)())
+    }
+
     create_callback(config) {
         return () => {
             const env = this.create_env(config)
-            this.updateElStyle(config, env)
+            this.type === 'dom' && this.updateElStyle(config, env)
+            this.type === 'obj' && this.updateFoValue(config, env)
         }
     }
 
     bind(config) {
-        MK.add_callback(this.create_callback(config))
+        this.ref && MK.add_callback(this.create_callback(config))
     }
+
+    // todo unbind
 }

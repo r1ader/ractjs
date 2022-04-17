@@ -1,30 +1,15 @@
-import _ from "./src/lodash.js";
-import Actor from "./src/Actor";
-import acts from './src/acts.js'
-import Follower from "./src/Follower";
+
+import Staff from "./src/Staff";
+import acts from './src/acts'
+import { arrayLikeProxy, r_warn, typeCheck } from "./src/util";
 
 const staffs = new Map()
-const followers = new Map()
-
-class Staff {
-    constructor(el) {
-        this.actor = new Actor(el)
-        this.follower = new Follower(el)
-        const _this = this
-        return new Proxy(el, {
-            get(target, prop) {
-                if (prop in _this.actor) return _this.actor[prop]
-                if (prop in _this.follower) return _this.follower[prop]
-            },
-            set(target, prop, value) {
-                if (prop in _this.actor) return Reflect.set(_this.actor, prop, value)
-                if (prop in _this.follower) return Reflect.set(_this.follower, prop, value)
-            }
-        })
-    }
-}
 
 const register = function (el) {
+    if (!typeCheck(el)) {
+        r_warn('unsupported register object')
+        return false
+    }
     if (staffs.has(el)) return staffs.get(el)
     const res = new Staff(el)
     staffs.set(el, res)
@@ -32,22 +17,7 @@ const register = function (el) {
 }
 
 const r = function (...staff_list) {
-    return new Proxy(staff_list.map(o => register(o)), {
-        get: function (target, p) {
-            if (target.every(o => _.isFunction(o[p]))) {
-                return function () {
-                    const _args = arguments
-                    target.forEach(function (actor) {
-                        actor[p](..._args)
-                    })
-                    return this
-                }
-            } else {
-                return new Map(target.map(o => [o, o[p]]))
-            }
-        }
-    })
-
+    return arrayLikeProxy(staff_list.map(o => register(o)).filter(o => o))
 }
 
 // if (import.meta.hot) {
