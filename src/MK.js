@@ -6,8 +6,9 @@ export class MK {
         this.M = this.init_M()
         this.K = this.init_K()
         this.callback = null
-        this.mousemove_followers = []
-        this.keydown_followers = {}
+        this.callback_count = 0
+        this.mousemove_followers = new Map()
+        this.keydown_followers = new Map()
         document.addEventListener('mousemove', function (e) {
             _this.M.clientX = e.clientX
             _this.M.clientY = e.clientY
@@ -28,9 +29,7 @@ export class MK {
         }, {
             get: function (target, p, receiver) {
                 if (!_this.callback || !isMouseState(p)) return target[p]
-                if (_this.mousemove_followers.indexOf(_this.callback) === -1) {
-                    _this.mousemove_followers.push(_this.callback)
-                }
+                _this.mousemove_followers.set(_this.callback_count, _this.callback)
                 return target[p]
             },
             set(target, p, value, receiver) {
@@ -47,19 +46,17 @@ export class MK {
     init_K() {
         const _this = this
         return new Proxy({}, {
-            get: function (target, p, receiver) {
+            get: function (target, key, receiver) {
                 // console.log('get', p)
-                if (!_this.callback || !isKeyboardState(p)) return target[p]
-                _this.keydown_followers[p] ||= []
-                if (_this.keydown_followers[p].indexOf(_this.callback) === -1) {
-                    _this.keydown_followers[p].push(_this.callback)
-                }
-                return target[p]
+                if (!_this.callback || !isKeyboardState(key)) return target[key]
+                !_this.keydown_followers.has(key) && _this.keydown_followers.set(key, new Map())
+                _this.keydown_followers.get(key).set(_this.callback_count, _this.callback)
+                return target[key]
             },
-            set: function (target, p, value, receiver) {
+            set: function (target, key, value, receiver) {
                 // console.log('set', p)
-                const res = Reflect.set(target, p, value)
-                _this.keydown_followers[p] && _this.keydown_followers[p].forEach(func => {
+                const res = Reflect.set(target, key, value)
+                _this.keydown_followers.has(key) && _this.keydown_followers.get(key).forEach(func => {
                     typeof func === 'function' && func()
                 })
                 return res
@@ -77,6 +74,16 @@ export class MK {
         // console.log(callback)
         callback(this.M, this.K)
         this.callback = null
+        return this.callback_count++
+    }
+
+    cancel_callback(callback_id) {
+        this.keydown_followers.forEach(mp => {
+            mp instanceof Map &&
+            mp.has(callback_id) &&
+            mp.delete(callback_id)
+        })
+        this.mousemove_followers.has(callback_id) && this.mousemove_followers.delete(callback_id)
     }
 }
 

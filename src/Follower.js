@@ -52,8 +52,12 @@ export default class Follower {
     }
 
     bind(config) {
-        this.ref && MK.add_callback(this.create_callback(config))
+        if(!this.ref) return
+        return MK.add_callback(this.create_callback(config))
     }
 
     // todo unbind
+    unbind(callback_id) {
+        MK.cancel_callback(callback_id)
+    }
 }

@@ -131,16 +131,17 @@ export function typeCheck(target) {
     if (target?.__proto__?.__proto__ === null) return 'obj'
 }
 
-export function arrayLikeProxy(array){
+export function arrayLikeProxy(array) {
     return new Proxy(array, {
         get: function (target, p) {
             if (target.every(o => _.isFunction(o[p]))) {
                 return function () {
                     const _args = arguments
-                    target.forEach(function (actor) {
-                        actor[p](..._args)
+                    const result = target.map(function (staff) {
+                        return staff[p](..._args)
                     })
-                    return this
+                    if (!result.every(o => o !== undefined)) return this
+                    return result.length === 1 ? result.shift() : result
                 }
             } else {
                 return new Map(target.map(o => [o, o[p]]))
