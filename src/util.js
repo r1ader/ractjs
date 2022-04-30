@@ -129,6 +129,8 @@ export function isMouseState(prop) {
 
 export function typeCheck(target) {
     if (target instanceof HTMLElement) return 'dom'
+    if (target instanceof SVGPathElement) return 'path'
+    if (target instanceof SVGSVGElement) return 'svg'
     if (target?.__proto__?.__proto__ === null) return 'obj'
 }
 
