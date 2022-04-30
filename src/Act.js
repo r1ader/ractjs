@@ -28,7 +28,7 @@ export default class Act {
             .filter(o => class_prop['act'].indexOf(o) === -1)
             .forEach(key => {
                 if (regex_standard_act_style_value.test(this[key])) return
-                this[key] ??= act_style_standardify(ref, key, this[key])
+                this[key] = act_style_standardify(ref, key, this[key]) || this[key]
             })
     }
 

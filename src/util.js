@@ -68,9 +68,10 @@ export function generate_id() {
 export const clog = console.log
 
 export function updateElStyle(el, key, value, ratio, reverse = false) {
-    const extract_res = value.match(regex_standard_act_style_value)
+    const extract_number_reg = /\[(-|\d|\.)+?~(-|\d|\.)+?]/g
+    const extract_res = value.match(extract_number_reg)
     if (!_.isArray(extract_res) || !extract_res.length) return
-    let groove = value.replace(regex_standard_act_style_value, '{}')
+    let groove = value.replace(extract_number_reg, '{}')
     const slots = extract_res.map(range => {
         let [start_value, end_value] = range.replace('[', '').replace(']', '').split('~').map(o => _.toNumber(o))
         if (reverse) {
