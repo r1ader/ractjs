@@ -1,7 +1,8 @@
 import _ from "./lodash";
 import {
     class_prop,
-    regex_standard_act_style_value
+    regex_standard_act_style_value,
+    act_default
 } from "./const";
 import {
     define_name_for_act,
@@ -11,10 +12,8 @@ import {
 
 export default class Act {
     constructor(argus) {
+        Object.assign(this, act_default)
         Object.assign(this, argus)
-        this.duration ||= 1000
-        this.ease ||= 'easeOutExpo'
-        this.target ||= 'self'
         _.isString(this.loop) && parse_loop(this)
     }
 

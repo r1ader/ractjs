@@ -38,3 +38,16 @@ export const class_prop = {
         'target'
     ]
 }
+
+export const act_default = {
+    callback: undefined,
+    duration: 1000,
+    ease: 'easeOutExpo',
+    delay: 0,
+    loop: 0,
+    loop_mode: undefined,
+    name: undefined,
+    parallel: undefined,
+    reverse: false,
+    target: 'self'
+}
