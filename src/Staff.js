@@ -1,6 +1,6 @@
 import Actor from "./Actor";
 import Follower from "./Follower";
-
+// todo register follower only when it is necessary
 export default class Staff {
     constructor(el) {
         this.actor = new Actor(el)

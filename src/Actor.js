@@ -2,8 +2,6 @@ import { parseEasings } from "./math";
 import _ from "./lodash";
 import { updateElStyle } from "./util";
 import Act from "./Act";
-import Follower from "./Follower";
-import MK from "./MK";
 
 const EASE = Symbol('ease_function')
 const REC = Symbol('onRecord')

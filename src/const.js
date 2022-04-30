@@ -1,3 +1,5 @@
+export const regex_standard_act_style_value = /\[(-|\d|\.)+?~(-|\d|\.)+?]/
+
 export const support_parse_props = {
     px_props:
         [
@@ -22,15 +24,17 @@ export const support_parse_props = {
     ]
 }
 
-export const class_prop = [
-    'name',
-    'callback',
-    'reverse',
-    'duration',
-    'delay',
-    'ease',
-    'parallel',
-    'loop',
-    'loop_mode',
-    'target'
-]
+export const class_prop = {
+    act: [
+        'name',
+        'callback',
+        'reverse',
+        'duration',
+        'delay',
+        'ease',
+        'parallel',
+        'loop',
+        'loop_mode',
+        'target'
+    ]
+}

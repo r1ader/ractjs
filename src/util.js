@@ -1,5 +1,6 @@
 // todo support more unit
 import _ from "./lodash";
+import { regex_standard_act_style_value, support_parse_props } from "./const";
 
 export function getNumberFromCssValue(value, unit) {
     unit = unit || ''
@@ -13,6 +14,7 @@ export function getNumberFromCssValue(value, unit) {
 
 export function r_warn(msg) {
     console.warn(`ract.js warning: ${ msg }`)
+    return false
 }
 
 export function isAnimationValid(str) {
@@ -53,7 +55,7 @@ export function parseColorProps(start_color, end_color) {
 
 }
 
-export function defineNameForAct(config) {
+export function define_name_for_act(config) {
     return Object.keys(config).filter(o => config[o])
         .map(o => `${ o } : ${ config[o].toString() }`)
         .join('\n')
@@ -66,10 +68,9 @@ export function generate_id() {
 export const clog = console.log
 
 export function updateElStyle(el, key, value, ratio, reverse = false) {
-    const extract_number_reg = /\[(-|\d|\.)+?~(-|\d|\.)+?]/g
-    const extract_res = value.match(extract_number_reg)
+    const extract_res = value.match(regex_standard_act_style_value)
     if (!_.isArray(extract_res) || !extract_res.length) return
-    let groove = value.replace(extract_number_reg, '{}')
+    let groove = value.replace(regex_standard_act_style_value, '{}')
     const slots = extract_res.map(range => {
         let [start_value, end_value] = range.replace('[', '').replace(']', '').split('~').map(o => _.toNumber(o))
         if (reverse) {
@@ -148,4 +149,37 @@ export function arrayLikeProxy(array) {
             }
         }
     })
+}
+
+export function parse_loop(_this) {
+    const { loop } = _this
+    if (loop.split(' ').length === 2) {
+        const [loop_num, loop_mode] = loop.split(' ')
+        _this['loop'] = parseInt(loop_num)
+        _this['loop_mode'] = loop_mode
+    }
+}
+
+export function act_style_standardify(ref, key, value) {
+    if (!ref) return
+    for (let prop_type in support_parse_props) {
+        if (support_parse_props[prop_type].indexOf(key) === -1) continue
+        if (prop_type === 'color_props') return parseColorProps(getComputedStyle(ref)[key], value)
+        const unit = {
+            px_props: 'px',
+            number_props: '',
+        }[prop_type] || ''
+        const uppercasePropName = key.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
+        const origin_str = ref.style[key] || getComputedStyle(ref).getPropertyValue(uppercasePropName) || '0';
+        const origin_value = getNumberFromCssValue(origin_str, unit)
+        if (/\[(-|\d|\.)*?~(-|\d|\.)+?]/.test(value)) {
+            return value.replace(/([\[])(~)/g, `[${ origin_value }~`)
+        }
+        const css_value = getNumberFromCssValue(value, unit)
+        if (!_.isNumber(css_value)) {
+            return r_warn(`Unrecognized Style Value "${ value }"`)
+        }
+        return `[${ origin_value }~${ css_value }]${ unit }`
+
+    }
 }
